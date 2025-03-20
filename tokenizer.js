@@ -1,311 +1,192 @@
-// ==== Token クラス (トークンを保持するための簡易クラス) ====
 class Token {
   constructor(type, value) {
-    this.type = type;   // 例: "NUMBER", "IDENTIFIER", "TYPE", "KEYWORD", "STRING", etc.
-    this.value = value; // 実際の文字列 "100", "x", "int", "class", "import" など
+    this.type = type;
+    this.value = value;
   }
 }
 
-// ==== ユーティリティ関数 ====
-function isDigit(ch) {
-  return /[0-9]/.test(ch);
-}
-function isWhitespace(ch) {
-  return /\s/.test(ch);
-}
-function isLetterOrUnderscore(ch) {
-  return /[a-zA-Z_]/.test(ch);
-}
-function isLetterDigitOrUnderscore(ch) {
-  return /[a-zA-Z0-9_]/.test(ch);
-}
+// ==== Lexer クラス ====
+// Processing.js の字句解析器に似た実装
+class Lexer {
+  constructor(code) {
+    this.code = code;
+    this.pos = 0;
+    this.length = code.length;
+  }
 
-// ==== Processing向け字句解析関数 ====
-// Processingのソースコード文字列をトークン配列に分解する
-function tokenize(code) {
-  const tokens = [];
-  let pos = 0;
-  const length = code.length;
+  currentChar() {
+    return this.code[this.pos];
+  }
 
-  // (A) Processingでよく使う型・キーワードをまとめる
-  //     PDE(Processing) は実質 Java なので、最低限のものをピックアップ
-  const processingTypes = [
-    "boolean", "byte", "char", "color", "double", "float", "int", "long", "String"
-  ];
-  const processingKeywords = [
-    // 制御構文
-    "if", "else", "for", "while", "do", "switch", "case", "break", "continue", "return",
-    // Processing特有(関数)
-    "void", "setup", "draw",   // この辺りはキーワードというより組み込み関数名扱い
-    // クラス関連
-    "class", "new", "extends", 
-    // ライブラリインポート
-    "import"
-  ];
+  advance() {
+    this.pos++;
+  }
 
-  // -- メインループ --
-  while (pos < length) {
-    let currentChar = code[pos];
+  peek(offset = 1) {
+    return this.code[this.pos + offset];
+  }
 
-    // 1) 空白・改行のスキップ
-    if (isWhitespace(currentChar)) {
-      pos++;
-      continue;
+  isEOF() {
+    return this.pos >= this.length;
+  }
+
+  skipWhitespace() {
+    while (!this.isEOF() && /\s/.test(this.currentChar())) {
+      this.advance();
     }
+  }
 
-    // 2) コメント処理
-    // 2-1) "//" ... 行末まで無視
-    if (currentChar === "/" && pos + 1 < length && code[pos + 1] === "/") {
-      pos += 2; // "//" をスキップ
-      while (pos < length && code[pos] !== "\n") {
-        pos++;
+  // コメント処理: // と /* ... */
+  skipComment() {
+    if (this.currentChar() === "/" && this.peek() === "/") {
+      this.advance(); this.advance();
+      while (!this.isEOF() && this.currentChar() !== "\n") {
+        this.advance();
       }
-      continue;
-    }
-    // 2-2) "/*" ... "*/" まで無視
-    if (currentChar === "/" && pos + 1 < length && code[pos + 1] === "*") {
-      pos += 2; // "/*"
-      while (pos + 1 < length) {
-        if (code[pos] === "*" && code[pos + 1] === "/") {
-          pos += 2; // "*/" をスキップ
-          break;
-        }
-        pos++;
+    } else if (this.currentChar() === "/" && this.peek() === "*") {
+      this.advance(); this.advance();
+      while (!this.isEOF() && !(this.currentChar() === "*" && this.peek() === "/")) {
+        this.advance();
       }
-      continue;
+      this.advance(); this.advance();
+    }
+  }
+
+  nextToken() {
+    this.skipWhitespace();
+    if (this.isEOF()) return null;
+    
+    // コメントのチェック
+    if (this.currentChar() === "/" && (this.peek() === "/" || this.peek() === "*")) {
+      this.skipComment();
+      return this.nextToken();
     }
 
-    // 3) 数字 (NUMBER)
-    //    float や double もあるので、整数→小数点→小数 も簡易対応するならここを拡張
-    if (isDigit(currentChar)) {
+    let ch = this.currentChar();
+
+    // 数字 (整数・小数)
+    if (/[0-9]/.test(ch)) {
       let numStr = "";
-      while (pos < length && (isDigit(code[pos]) || code[pos] === ".")) {
-        numStr += code[pos];
-        pos++;
+      while (!this.isEOF() && /[0-9.]/.test(this.currentChar())) {
+        numStr += this.currentChar();
+        this.advance();
       }
-      // 例: "123.45"
-      tokens.push(new Token("NUMBER", numStr));
-      continue;
+      return new Token("NUMBER", numStr);
     }
 
-    // 4) 識別子 or キーワード (英字または_ で始まる)
-    if (isLetterOrUnderscore(currentChar)) {
+    // 識別子またはキーワード (アルファベットまたは _ で始まる)
+    if (/[a-zA-Z_]/.test(ch)) {
       let idStr = "";
-      // 1文字目
-      idStr += code[pos];
-      pos++;
-      // 2文字目以降
-      while (pos < length && isLetterDigitOrUnderscore(code[pos])) {
-        idStr += code[pos];
-        pos++;
+      while (!this.isEOF() && /[a-zA-Z0-9_]/.test(this.currentChar())) {
+        idStr += this.currentChar();
+        this.advance();
       }
-
-      // キーワード or 型かどうか判定
-      if (processingTypes.includes(idStr)) {
-        tokens.push(new Token("TYPE", idStr));
-      } else if (processingKeywords.includes(idStr)) {
-        tokens.push(new Token("KEYWORD", idStr));
+      const types = ["boolean", "byte", "char", "color", "double", "float", "int", "long", "String"];
+      const keywords = ["if", "else", "for", "while", "do", "switch", "case", "break", "continue", "return", "void", "class", "new", "extends", "import"];
+      if (types.includes(idStr)) {
+        return new Token("TYPE", idStr);
+      } else if (keywords.includes(idStr)) {
+        return new Token("KEYWORD", idStr);
       } else {
-        // 上記に該当しなければ普通の識別子
-        tokens.push(new Token("IDENTIFIER", idStr));
+        return new Token("IDENTIFIER", idStr);
       }
-      continue;
     }
 
-    // 5) 二文字演算子(==, !=, <=, >=, &&, ||)など
-    if (currentChar === "=") {
-      if (pos + 1 < length && code[pos + 1] === "=") {
-        tokens.push(new Token("EQ", "=="));
-        pos += 2;
-      } else {
-        tokens.push(new Token("ASSIGN", "="));
-        pos++;
+    // 二文字演算子
+    if (ch === "=") {
+      if (this.peek() === "=") {
+        this.advance(); this.advance();
+        return new Token("EQ", "==");
       }
-      continue;
+      this.advance();
+      return new Token("ASSIGN", "=");
     }
-    if (currentChar === "!") {
-      if (pos + 1 < length && code[pos + 1] === "=") {
-        tokens.push(new Token("NEQ", "!="));
-        pos += 2;
-      } else {
-        tokens.push(new Token("NOT", "!"));
-        pos++;
+    if (ch === "!") {
+      if (this.peek() === "=") {
+        this.advance(); this.advance();
+        return new Token("NEQ", "!=");
       }
-      continue;
+      this.advance();
+      return new Token("NOT", "!");
     }
-    if (currentChar === "<") {
-      if (pos + 1 < length && code[pos + 1] === "=") {
-        tokens.push(new Token("LE", "<="));
-        pos += 2;
-      } else {
-        tokens.push(new Token("LT", "<"));
-        pos++;
+    if (ch === "<") {
+      if (this.peek() === "=") {
+        this.advance(); this.advance();
+        return new Token("LE", "<=");
       }
-      continue;
+      this.advance();
+      return new Token("LT", "<");
     }
-    if (currentChar === ">") {
-      if (pos + 1 < length && code[pos + 1] === "=") {
-        tokens.push(new Token("GE", ">="));
-        pos += 2;
-      } else {
-        tokens.push(new Token("GT", ">"));
-        pos++;
+    if (ch === ">") {
+      if (this.peek() === "=") {
+        this.advance(); this.advance();
+        return new Token("GE", ">=");
       }
-      continue;
+      this.advance();
+      return new Token("GT", ">");
     }
-    if (currentChar === "&") {
-      if (pos + 1 < length && code[pos + 1] === "&") {
-        tokens.push(new Token("AND", "&&"));
-        pos += 2;
-      } else {
-        tokens.push(new Token("UNDEFINED", "&"));
-        pos++;
-      }
-      continue;
+    if (ch === "&" && this.peek() === "&") {
+      this.advance(); this.advance();
+      return new Token("AND", "&&");
     }
-    if (currentChar === "|") {
-      if (pos + 1 < length && code[pos + 1] === "|") {
-        tokens.push(new Token("OR", "||"));
-        pos += 2;
-      } else {
-        tokens.push(new Token("UNDEFINED", "|"));
-        pos++;
-      }
-      continue;
+    if (ch === "|" && this.peek() === "|") {
+      this.advance(); this.advance();
+      return new Token("OR", "||");
     }
 
-    // 6) 1文字記号
-    switch (currentChar) {
-      case "+":
-        tokens.push(new Token("PLUS", "+"));
-        pos++;
-        continue;
-      case "-":
-        tokens.push(new Token("MINUS", "-"));
-        pos++;
-        continue;
-      case "*":
-        tokens.push(new Token("MULTIPLY", "*"));
-        pos++;
-        continue;
-      case "/":
-        // ここは既にコメント判定と区別済みなので実質 "/" だけ
-        tokens.push(new Token("DIVIDE", "/"));
-        pos++;
-        continue;
-      case "(":
-        tokens.push(new Token("LPAREN", "("));
-        pos++;
-        continue;
-      case ")":
-        tokens.push(new Token("RPAREN", ")"));
-        pos++;
-        continue;
-      case "{":
-        tokens.push(new Token("LBRACE", "{"));
-        pos++;
-        continue;
-      case "}":
-        tokens.push(new Token("RBRACE", "}"));
-        pos++;
-        continue;
-      case "[":
-        tokens.push(new Token("LBRACKET", "["));
-        pos++;
-        continue;
-      case "]":
-        tokens.push(new Token("RBRACKET", "]"));
-        pos++;
-        continue;
-      case ";":
-        tokens.push(new Token("SEMICOLON", ";"));
-        pos++;
-        continue;
-      case ",":
-        tokens.push(new Token("COMMA", ","));
-        pos++;
-        continue;
-      case ".":
-        tokens.push(new Token("DOT", "."));
-        pos++;
-        continue;
-      default:
-        break;
+    // 1文字記号
+    const singleChars = {
+      "+": "PLUS", "-": "MINUS", "*": "MULTIPLY", "/": "DIVIDE",
+      "(": "LPAREN", ")": "RPAREN",
+      "{": "LBRACE", "}": "RBRACE",
+      "[": "LBRACKET", "]": "RBRACKET",
+      ";": "SEMICOLON", ",": "COMMA", ".": "DOT"
+    };
+    if (ch in singleChars) {
+      this.advance();
+      return new Token(singleChars[ch], ch);
     }
 
-    // 7) 文字列リテラル "..."
-    if (currentChar === "\"") {
-      pos++;
-      let strValue = "";
-      while (pos < length && code[pos] !== "\"") {
-        strValue += code[pos];
-        pos++;
+    // 文字列リテラル
+    if (ch === "\"") {
+      this.advance();
+      let strVal = "";
+      while (!this.isEOF() && this.currentChar() !== "\"") {
+        strVal += this.currentChar();
+        this.advance();
       }
-      // 終端の " を消費
-      pos++;
-      tokens.push(new Token("STRING", strValue));
-      continue;
+      this.advance(); // 終端の " を消費
+      return new Token("STRING", strVal);
     }
 
-    // 8) 文字リテラル: '...'
-    if (currentChar === "'") {
-      pos++;
-      let charValue = "";
-      while (pos < length && code[pos] !== "'") {
-        charValue += code[pos];
-        pos++;
+    // 文字リテラル
+    if (ch === "'") {
+      this.advance();
+      let charVal = "";
+      while (!this.isEOF() && this.currentChar() !== "'") {
+        charVal += this.currentChar();
+        this.advance();
       }
-      pos++;
-      tokens.push(new Token("CHAR", charValue));
-      continue;
+      this.advance();
+      return new Token("CHAR", charVal);
     }
 
-    // 9) 未定義文字
-    console.log("undefined string: " + currentChar);
-    pos++;
+    // 未定義文字の場合はログ出力しつつ読み進める
+    console.log("undefined character: " + ch);
+    this.advance();
+    return this.nextToken();
   }
 
-  return tokens;
-}
-
-// ----------------------------------------------------
-// 動作テスト例
-// ----------------------------------------------------
-/*
-const sampleCode = `
-// 配列の例
-int[] arr = new int[10];
-float x = 3.14;
-
-// クラス定義
-class MyClass {
-  int val = 0;
-  void doSomething() {
-    println("Hello");
+  tokenize() {
+    const tokens = [];
+    let tok;
+    while ((tok = this.nextToken()) !== null) {
+      tokens.push(tok);
+    }
+    return tokens;
   }
 }
 
-// コメント
-// これは行コメント
-/*
-  これはブロックコメント
-* /
-import some.library.*;
-
-void setup() {
-  // setup
-  size(400, 400);
-}
-
-void draw() {
-  background(255);
-  ellipse(width/2, height/2, 50, 50);
-  if (mousePressed) {
-    println("Clicked!");
-  }
-}
-`;
-
-const tokens = tokenize(sampleCode);
-console.log(tokens);
-*/
+module.exports = {
+  tokenize: (code) => new Lexer(code).tokenize()
+};
