@@ -95,4 +95,4 @@ function generateJavaScriptFromAST(ast, indent = 0) {
   }
 }
 
-module.exports = { generateJavaScriptFromAST };
+window.generateJavaScriptFromAST = generateJavaScriptFromAST;

@@ -796,30 +796,29 @@ class ImportNode {
   // --------------------------------------------------
   // エクスポート
   // --------------------------------------------------
-  module.exports = {
-    tokenize: (code) => new Lexer(code).tokenize(),
-    Parser,
-    // 必要なら AST ノードもエクスポート
-    ImportNode,
-    ProgramNode,
-    ClassNode,
-    FieldNode,
-    MethodNode,
-    GlobalFunctionNode,
-    VariableDeclarationNode,
-    BlockNode,
-    ExpressionStatementNode,
-    IfStatementNode,
-    WhileStatementNode,
-    ForStatementNode,
-    ReturnStatementNode,
-    BinaryOpNode,
-    UnaryOpNode,
-    LiteralNode,
-    IdentifierNode,
-    FunctionCallNode,
-    ArrayAccessNode,
-    NewArrayNode,
-    NewObjectNode
-  };
-  
+
+window.tokenize = (code) => new Lexer(code).tokenize();
+window.Parser = Parser;
+
+// 必要なASTノードも個別に公開
+window.ImportNode = ImportNode;
+window.ProgramNode = ProgramNode;
+window.ClassNode = ClassNode;
+window.FieldNode = FieldNode;
+window.MethodNode = MethodNode;
+window.GlobalFunctionNode = GlobalFunctionNode;
+window.VariableDeclarationNode = VariableDeclarationNode;
+window.BlockNode = BlockNode;
+window.ExpressionStatementNode = ExpressionStatementNode;
+window.IfStatementNode = IfStatementNode;
+window.WhileStatementNode = WhileStatementNode;
+window.ForStatementNode = ForStatementNode;
+window.ReturnStatementNode = ReturnStatementNode;
+window.BinaryOpNode = BinaryOpNode;
+window.UnaryOpNode = UnaryOpNode;
+window.LiteralNode = LiteralNode;
+window.IdentifierNode = IdentifierNode;
+window.FunctionCallNode = FunctionCallNode;
+window.ArrayAccessNode = ArrayAccessNode;
+window.NewArrayNode = NewArrayNode;
+window.NewObjectNode = NewObjectNode;

@@ -187,6 +187,7 @@ class Lexer {
   }
 }
 
-module.exports = {
-  tokenize: (code) => new Lexer(code).tokenize()
-};
+function tokenize(code) {
+  return new Lexer(code).tokenize();
+}
+window.tokenize = tokenize;
