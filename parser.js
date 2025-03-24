@@ -181,194 +181,7 @@ class ImportNode {
       this.expr = expr;
     }
   }  
-  
-  // --------------------------------------------------
-  // 字句解析器 (Lexer) --- Processing.js の実装を参考
-  // --------------------------------------------------
-  class Lexer {
-    constructor(code) {
-      this.code = code;
-      this.pos = 0;
-      this.length = code.length;
-    }
-  
-    currentChar() {
-      return this.code[this.pos];
-    }
-  
-    advance() {
-      this.pos++;
-    }
-  
-    isEOF() {
-      return this.pos >= this.length;
-    }
-  
-    skipWhitespace() {
-      while (!this.isEOF() && /\s/.test(this.currentChar())) {
-        this.advance();
-      }
-    }
-  
-    // コメント処理: // と /* ... */
-    skipComment() {
-      if (this.currentChar() === "/" && this.peek() === "/") {
-        this.advance(); this.advance();
-        while (!this.isEOF() && this.currentChar() !== "\n") {
-          this.advance();
-        }
-      } else if (this.currentChar() === "/" && this.peek() === "*") {
-        this.advance(); this.advance();
-        while (!this.isEOF() && !(this.currentChar() === "*" && this.peek() === "/")) {
-          this.advance();
-        }
-        this.advance(); this.advance();
-      }
-    }
-  
-    peek(offset = 1) {
-      return this.code[this.pos + offset];
-    }
-  
-    // 単純なトークン生成
-    nextToken() {
-      this.skipWhitespace();
-      if (this.isEOF()) return null;
-  
-      let ch = this.currentChar();
-  
-      // コメントのチェック
-      if (ch === "/") {
-        if (this.peek() === "/" || this.peek() === "*") {
-          this.skipComment();
-          return this.nextToken();
-        }
-      }
-  
-      // 数字
-      if (/[0-9]/.test(ch)) {
-        let numStr = "";
-        while (!this.isEOF() && /[0-9.]/.test(this.currentChar())) {
-          numStr += this.currentChar();
-          this.advance();
-        }
-        return new Token("NUMBER", numStr);
-      }
-  
-      // 識別子またはキーワード
-      if (/[a-zA-Z_]/.test(ch)) {
-        let idStr = "";
-        while (!this.isEOF() && /[a-zA-Z0-9_]/.test(this.currentChar())) {
-          idStr += this.currentChar();
-          this.advance();
-        }
-        // Processing.js の場合、キーワードリストで判定
-        const types = ["boolean", "byte", "char", "color", "double", "float", "int", "long", "String"];
-        const keywords = ["if", "else", "for", "while", "do", "switch", "case", "break", "continue", "return", "void", "setup", "draw", "class", "new", "extends", "import"];
-        if (types.includes(idStr)) {
-          return new Token("TYPE", idStr);
-        } else if (keywords.includes(idStr)) {
-          return new Token("KEYWORD", idStr);
-        } else {
-          return new Token("IDENTIFIER", idStr);
-        }
-      }
-  
-      // 2文字演算子
-      if (ch === "=") {
-        if (this.peek() === "=") {
-          this.advance(); this.advance();
-          return new Token("EQ", "==");
-        }
-        this.advance();
-        return new Token("ASSIGN", "=");
-      }
-      if (ch === "!") {
-        if (this.peek() === "=") {
-          this.advance(); this.advance();
-          return new Token("NEQ", "!=");
-        }
-        this.advance();
-        return new Token("NOT", "!");
-      }
-      if (ch === "<") {
-        if (this.peek() === "=") {
-          this.advance(); this.advance();
-          return new Token("LE", "<=");
-        }
-        this.advance();
-        return new Token("LT", "<");
-      }
-      if (ch === ">") {
-        if (this.peek() === "=") {
-          this.advance(); this.advance();
-          return new Token("GE", ">=");
-        }
-        this.advance();
-        return new Token("GT", ">");
-      }
-      if (ch === "&" && this.peek() === "&") {
-        this.advance(); this.advance();
-        return new Token("AND", "&&");
-      }
-      if (ch === "|" && this.peek() === "|") {
-        this.advance(); this.advance();
-        return new Token("OR", "||");
-      }
-  
-      // 1文字記号
-      const singleChars = {
-        "+": "PLUS", "-": "MINUS", "*": "MULTIPLY", "/": "DIVIDE",
-        "(": "LPAREN", ")": "RPAREN",
-        "{": "LBRACE", "}": "RBRACE",
-        "[": "LBRACKET", "]": "RBRACKET",
-        ";": "SEMICOLON", ",": "COMMA", ".": "DOT"
-      };
-      if (ch in singleChars) {
-        this.advance();
-        return new Token(singleChars[ch], ch);
-      }
-  
-      // 文字列リテラル
-      if (ch === "\"") {
-        this.advance();
-        let strVal = "";
-        while (!this.isEOF() && this.currentChar() !== "\"") {
-          strVal += this.currentChar();
-          this.advance();
-        }
-        this.advance(); // 終端の " 消費
-        return new Token("STRING", strVal);
-      }
-  
-      // 文字リテラル
-      if (ch === "'") {
-        this.advance();
-        let charVal = "";
-        while (!this.isEOF() && this.currentChar() !== "'") {
-          charVal += this.currentChar();
-          this.advance();
-        }
-        this.advance();
-        return new Token("CHAR", charVal);
-      }
-  
-      // 未定義文字
-      console.log("undefined character: " + ch);
-      this.advance();
-      return this.nextToken();
-    }
-  
-    tokenize() {
-      const tokens = [];
-      let tok;
-      while ((tok = this.nextToken()) !== null) {
-        tokens.push(tok);
-      }
-      return tokens;
-    }
-  }
-  
+
   // --------------------------------------------------
   // パーサ (Processing.js の AST 作成ロジックを参考)
   // --------------------------------------------------
@@ -796,30 +609,29 @@ class ImportNode {
   // --------------------------------------------------
   // エクスポート
   // --------------------------------------------------
-  module.exports = {
-    tokenize: (code) => new Lexer(code).tokenize(),
-    Parser,
-    // 必要なら AST ノードもエクスポート
-    ImportNode,
-    ProgramNode,
-    ClassNode,
-    FieldNode,
-    MethodNode,
-    GlobalFunctionNode,
-    VariableDeclarationNode,
-    BlockNode,
-    ExpressionStatementNode,
-    IfStatementNode,
-    WhileStatementNode,
-    ForStatementNode,
-    ReturnStatementNode,
-    BinaryOpNode,
-    UnaryOpNode,
-    LiteralNode,
-    IdentifierNode,
-    FunctionCallNode,
-    ArrayAccessNode,
-    NewArrayNode,
-    NewObjectNode
-  };
-  
+
+
+window.Parser = Parser;
+
+// 必要なASTノードも個別に公開
+window.ImportNode = ImportNode;
+window.ProgramNode = ProgramNode;
+window.ClassNode = ClassNode;
+window.FieldNode = FieldNode;
+window.MethodNode = MethodNode;
+window.GlobalFunctionNode = GlobalFunctionNode;
+window.VariableDeclarationNode = VariableDeclarationNode;
+window.BlockNode = BlockNode;
+window.ExpressionStatementNode = ExpressionStatementNode;
+window.IfStatementNode = IfStatementNode;
+window.WhileStatementNode = WhileStatementNode;
+window.ForStatementNode = ForStatementNode;
+window.ReturnStatementNode = ReturnStatementNode;
+window.BinaryOpNode = BinaryOpNode;
+window.UnaryOpNode = UnaryOpNode;
+window.LiteralNode = LiteralNode;
+window.IdentifierNode = IdentifierNode;
+window.FunctionCallNode = FunctionCallNode;
+window.ArrayAccessNode = ArrayAccessNode;
+window.NewArrayNode = NewArrayNode;
+window.NewObjectNode = NewObjectNode;
