@@ -1,84 +1,89 @@
 window.onload = runPDE;
-    // Processing風API定義（必要）
-    const processingAPI = `
-    let ctx;
-    let width = 0, height = 0;
-    let fillColor = 'black';
-    let strokeColor = 'black';
-    let useStroke = true;
-    let useFill = true;
+// Processing風API定義（必要）
+const processingAPI = `
+let ctx;
+let width = 0, height = 0;
+let fillColor = 'black';
+let strokeColor = 'black';
+let useStroke = true;
+let useFill = true;
 
-    function size(w, h) {
-      const canvas = document.getElementById("canvas");
-      canvas.width = width = w;
-      canvas.height = height = h;
-      ctx = canvas.getContext("2d");
-    }
+function size(w, h) {
+  const canvas = document.getElementById("canvas");
+  canvas.width = width = w;
+  canvas.height = height = h;
+  ctx = canvas.getContext("2d");
+}
 
-    function background(r, g = r, b = r) {
-      ctx.fillStyle = \`rgb(\${r}, \${g}, \${b})\`;
-      ctx.fillRect(0, 0, width, height);
-    }
+function background(r, g = r, b = r) {
+  ctx.fillStyle = \`rgb(\${r}, \${g}, \${b})\`;
+  ctx.fillRect(0, 0, width, height);
+}
 
-    function ellipse(x, y, w, h) {
-      ctx.beginPath();
-      ctx.ellipse(x, y, w / 2, h / 2, 0, 0, 2 * Math.PI);
-      if (useFill) {
-        ctx.fillStyle = fillColor;
-        ctx.fill();
-      }
-      if (useStroke) {
-        ctx.strokeStyle = strokeColor;
-        ctx.stroke();
-      }
-    }
+function ellipse(x, y, w, h) {
+  ctx.beginPath();
+  ctx.ellipse(x, y, w / 2, h / 2, 0, 0, 2 * Math.PI);
+  if (useFill) {
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+  }
+  if (useStroke) {
+    ctx.strokeStyle = strokeColor;
+    ctx.stroke();
+  }
+}
 
-    function rect(x, y, w, h) {
-      if (useFill) {
-        ctx.fillStyle = fillColor;
-        ctx.fillRect(x, y, w, h);
-      }
-      if (useStroke) {
-        ctx.strokeStyle = strokeColor;
-        ctx.strokeRect(x, y, w, h);
-      }
-    }
+function rect(x, y, w, h) {
+  if (useFill) {
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(x, y, w, h);
+  }
+  if (useStroke) {
+    ctx.strokeStyle = strokeColor;
+    ctx.strokeRect(x, y, w, h);
+  }
+}
 
-    function line(x1, y1, x2, y2) {
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      if (useStroke) {
-        ctx.strokeStyle = strokeColor;
-        ctx.stroke();
-      }
-    }
+function line(x1, y1, x2, y2) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  if (useStroke) {
+    ctx.strokeStyle = strokeColor;
+    ctx.stroke();
+  }
+}
 
-    function fill(r, g, b) {
-      fillColor = \`rgb(\${r}, \${g}, \${b})\`;
-      useFill = true;
-    }
+function fill(r, g, b) {
+  fillColor = \`rgb(\${r}, \${g}, \${b})\`;
+  useFill = true;
+}
 
-    function stroke(r, g, b) {
-      strokeColor = \`rgb(\${r}, \${g}, \${b})\`;
-      useStroke = true;
-    }
+function stroke(r, g, b) {
+  strokeColor = \`rgb(\${r}, \${g}, \${b})\`;
+  useStroke = true;
+}
 
-    function noFill() {
-      useFill = false;
-    }
+function noFill() {
+  useFill = false;
+}
 
-    function noStroke() {
-      useStroke = false;
-    }
-    `;
+function noStroke() {
+  useStroke = false;
+}
+`;
 
-    const processingAPI2 = `
-    \nsetup();\nsetInterval(() => { if (typeof draw === 'function') draw(); }, 30);
-    `;
+const processingAPI2 = `
+\nsetup();\nsetInterval(() => { if (typeof draw === 'function') draw(); }, 30);
+`;
 
-    function runPDE() {
-      const code = document.getElementById("pdeCode").value;
+function runPDE() {
+  fetch('samplePDE.pde')
+    .then(response => {
+      if (!response.ok) throw new Error("ファイル読み込みに失敗しました");
+      return response.text();
+    })
+    .then(code => {
       try {
         const tokens = tokenize(code);
         const parser = new Parser(tokens);
@@ -93,7 +98,12 @@ window.onload = runPDE;
         console.error("実行エラー：", e);
         alert("コンパイル/実行エラーがあります");
       }
-    }
+    })
+    .catch(err => {
+      console.error("読み込みエラー：", err);
+      alert("samplePDE.pde を読み込めませんでした");
+    });
+}
 
 
     // パーサー
@@ -1029,7 +1039,7 @@ class Lexer {
   }
 }
 
-// function tokenize(code) {
-//   return new Lexer(code).tokenize();
-// }
+function tokenize(code) {
+  return new Lexer(code).tokenize();
+}
 // window.tokenize = tokenize;
