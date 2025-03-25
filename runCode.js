@@ -91,7 +91,13 @@ function runPDE() {
         const jsCode = generateJavaScriptFromAST(ast);
         const fullCode = processingAPI + "\n" + jsCode + "\n" + processingAPI2;
 
+        const oldScript = document.getElementById("compiled-script");
+        if (oldScript) {
+          oldScript.remove();
+        }
+
         const script = document.createElement("script");
+        script.id = "compiled-script"; 
         script.textContent = fullCode;
         document.body.appendChild(script);
       } catch (e) {
