@@ -4,21 +4,72 @@
   <meta charset="UTF-8">
   <title>PDE Compiler in Browser</title>
   <style>
-    canvas { border: 1px solid black; }
+    canvas { border: 1px solid black; margin-top: 10px; }
     textarea { width: 100%; height: 150px; }
+    #output { width: 100%; height: 300px; margin-top: 10px; font-family: monospace; }
   </style>
 </head>
 <body>
   <h3>PDEコード入力：</h3>
+  <textarea id="pdeCode"></textarea>
   <br>
-
+  <button id="compileBtn">コンパイル＆実行</button>
+  <br>
+  <h3>変換されたJavaScriptコード：</h3>
+  <textarea id="output" readonly></textarea>
+  <br>
   <canvas id="canvas"></canvas>
 
   <!-- 必須：tokenizer/parser/codegen を先に読み込む -->
   <script src="runCode.js"></script>
 
   <script>
-    
+    document.addEventListener('DOMContentLoaded', function() {
+      // samplePDE.pdeからコードを読み込み
+      fetch('samplePDE.pde')
+        .then(response => response.text())
+        .then(code => {
+          document.getElementById('pdeCode').value = code;
+          // 初回実行
+          runCompiler();
+        })
+        .catch(err => {
+          console.error("読み込みエラー：", err);
+          alert("samplePDE.pde を読み込めませんでした");
+        });
+      
+      // コンパイルボタンのイベントリスナー
+      document.getElementById('compileBtn').addEventListener('click', runCompiler);
+      
+      function runCompiler() {
+        const code = document.getElementById('pdeCode').value;
+        try {
+          const tokens = tokenize(code);
+          const parser = new Parser(tokens);
+          const ast = parser.parseProgram();
+          const jsCode = generateJavaScriptFromAST(ast);
+          
+          // 変換されたコードを表示
+          document.getElementById('output').value = jsCode;
+          
+          // 実行
+          const fullCode = processingAPI + "\n" + jsCode + "\n" + processingAPI2;
+          
+          const oldScript = document.getElementById("compiled-script");
+          if (oldScript) {
+            oldScript.remove();
+          }
+          
+          const script = document.createElement("script");
+          script.id = "compiled-script";
+          script.textContent = fullCode;
+          document.body.appendChild(script);
+        } catch (e) {
+          console.error("実行エラー：", e);
+          alert("コンパイル/実行エラーがあります: " + e.message);
+        }
+      }
+    });
   </script>
 </body>
 </html>

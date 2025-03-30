@@ -1,4 +1,7 @@
-window.onload = runPDE;
+// ブラウザ環境でのみwindow.onloadを設定
+if (typeof window !== 'undefined') {
+  window.onload = runPDE;
+}
 // Processing風API定義（必要）
 const processingAPI = `
 let ctx;
@@ -8,11 +11,87 @@ let strokeColor = 'black';
 let useStroke = true;
 let useFill = true;
 
+// マウス関連のグローバル変数
+let mouseX = 0;
+let mouseY = 0;
+let pmouseX = 0;
+let pmouseY = 0;
+let mouseIsPressed = false;
+let mouseButton = 0; // 0: LEFT, 1: RIGHT, 2: CENTER
+
+// キーボード関連のグローバル変数
+let keyIsPressed = false;
+let key = '';
+let keyCode = 0;
+
+// テキスト関連
+let textFont = "Arial";
+let textSize_val = 12;
+
 function size(w, h) {
   const canvas = document.getElementById("canvas");
   canvas.width = width = w;
   canvas.height = height = h;
   ctx = canvas.getContext("2d");
+  
+  // マウスイベントのセットアップ
+  canvas.addEventListener('mousemove', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    pmouseX = mouseX;
+    pmouseY = mouseY;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+    
+    // mouseMoved関数が定義されていれば呼び出し
+    if (typeof mouseMoved === 'function' && !mouseIsPressed) {
+      mouseMoved();
+    }
+    
+    // mouseDragged関数が定義されていれば呼び出し
+    if (typeof mouseDragged === 'function' && mouseIsPressed) {
+      mouseDragged();
+    }
+  });
+  
+  canvas.addEventListener('mousedown', function(e) {
+    mouseIsPressed = true;
+    mouseButton = e.button; // 0: 左, 1: 中, 2: 右
+    
+    // mousePressed関数が定義されていれば呼び出し
+    if (typeof mousePressed === 'function') {
+      mousePressed();
+    }
+  });
+  
+  canvas.addEventListener('mouseup', function() {
+    mouseIsPressed = false;
+    
+    // mouseReleased関数が定義されていれば呼び出し
+    if (typeof mouseReleased === 'function') {
+      mouseReleased();
+    }
+  });
+  
+  // キーボードイベントのセットアップ
+  document.addEventListener('keydown', function(e) {
+    keyIsPressed = true;
+    key = e.key;
+    keyCode = e.keyCode;
+    
+    // keyPressed関数が定義されていれば呼び出し
+    if (typeof keyPressed === 'function') {
+      keyPressed();
+    }
+  });
+  
+  document.addEventListener('keyup', function() {
+    keyIsPressed = false;
+    
+    // keyReleased関数が定義されていれば呼び出し
+    if (typeof keyReleased === 'function') {
+      keyReleased();
+    }
+  });
 }
 
 function background(r, g = r, b = r) {
@@ -54,12 +133,12 @@ function line(x1, y1, x2, y2) {
   }
 }
 
-function fill(r, g, b) {
+function fill(r, g = r, b = r) {
   fillColor = \`rgb(\${r}, \${g}, \${b})\`;
   useFill = true;
 }
 
-function stroke(r, g, b) {
+function stroke(r, g = r, b = r) {
   strokeColor = \`rgb(\${r}, \${g}, \${b})\`;
   useStroke = true;
 }
@@ -71,6 +150,67 @@ function noFill() {
 function noStroke() {
   useStroke = false;
 }
+
+// テキスト関連機能
+function text(str, x, y) {
+  if (ctx) {
+    ctx.fillStyle = fillColor;
+    ctx.font = \`\${textSize_val}px \${textFont}\`;
+    ctx.fillText(str, x, y);
+  }
+}
+
+function textSize(size) {
+  textSize_val = size;
+}
+
+// 数学関連の便利関数
+function random(min, max = null) {
+  if (max === null) {
+    max = min;
+    min = 0;
+  }
+  return min + (max - min) * Math.random();
+}
+
+function dist(x1, y1, x2, y2) {
+  return Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
+}
+
+function min(a, b) {
+  return (a < b) ? a : b;
+}
+
+function max(a, b) {
+  return (a > b) ? a : b;
+}
+
+function map(value, start1, stop1, start2, stop2) {
+  return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+}
+
+function constrain(value, min, max) {
+  return value < min ? min : (value > max ? max : value);
+}
+
+// マウス関連の定数
+const LEFT = 0;
+const CENTER = 1;
+const RIGHT = 2;
+
+// キーボード関連の定数
+const BACKSPACE = 8;
+const TAB = 9;
+const ENTER = 13;
+const RETURN = 13;
+const SHIFT = 16;
+const CTRL = 17;
+const ALT = 18;
+const ESCAPE = 27;
+const UP = 38;
+const DOWN = 40;
+const LEFT_ARROW = 37;
+const RIGHT_ARROW = 39;
 `;
 
 const processingAPI2 = `
@@ -296,7 +436,15 @@ class CastNode {
     this.castType = castType;
     this.expr = expr;
   }
-}  
+}
+
+class PropertyAccessNode {
+  constructor(object, property) {
+    this.type = "PropertyAccess";
+    this.object = object;
+    this.property = property;
+  }
+}
 
 // --------------------------------------------------
 // パーサ (Processing.js の AST 作成ロジックを参考)
@@ -457,7 +605,26 @@ class Parser {
         this.nextToken();
         return new VariableDeclarationNode(retType, name, initializer);
       }
+    } 
+    // クラス型のグローバル変数の処理を追加
+    else if (this.matchToken("IDENTIFIER")) {
+      const className = this.nextToken().value;
+      if (!this.matchToken("IDENTIFIER")) this.error("Variable name expected after class type");
+      const varName = this.nextToken().value;
+      
+      let initializer = null;
+      if (this.matchToken("ASSIGN")) {
+        this.nextToken();
+        initializer = this.parseExpression();
+      }
+      
+      if (!this.matchToken("SEMICOLON")) this.error("Expected ; after global variable");
+      this.nextToken();
+      
+      // クラス型の変数宣言を作成
+      return new VariableDeclarationNode(className, varName, initializer);
     }
+    
     this.error("Unknown global element");
   }
 
@@ -564,31 +731,34 @@ class Parser {
     let left = this.parseComparison();
 
     if(this.matchToken("INCREMENT") ) {
-      
       this.nextToken();
+      // a++ は a = a + 1 に変換
       left = new BinaryOpNode("=", left, new BinaryOpNode("+", left, new LiteralNode(1)));
     } else if(this.matchToken("DECREMENT") ) {
-      
       this.nextToken();
+      // a-- は a = a - 1 に変換
       left = new BinaryOpNode("=", left, new BinaryOpNode("-", left, new LiteralNode(1)));
     } else if(this.matchToken("PLUSEQ")) {
       this.nextToken();
       const right = this.parseAssignment();
+      // a += b は a = a + b に変換
       left = new BinaryOpNode("=", left, new BinaryOpNode("+", left, right));
     } else if(this.matchToken("MINUSEQ")) {
       this.nextToken();
       const right = this.parseAssignment();
+      // a -= b は a = a - b に変換
       left = new BinaryOpNode("=", left, new BinaryOpNode("-", left, right));
     } else if(this.matchToken("MULTEQ")) {
       this.nextToken();
       const right = this.parseAssignment();
+      // a *= b は a = a * b に変換
       left = new BinaryOpNode("=", left, new BinaryOpNode("*", left, right));
     } else if(this.matchToken("DIVEQ")) {
       this.nextToken();
       const right = this.parseAssignment();
+      // a /= b は a = a / b に変換
       left = new BinaryOpNode("=", left, new BinaryOpNode("/", left, right));
     } else {
-      
       while (this.matchToken("ASSIGN")) {
         const op = this.currentToken().value;
         this.nextToken();
@@ -641,6 +811,18 @@ class Parser {
       this.nextToken();
       const expr = this.parseUnary();
       return new UnaryOpNode(op, expr);
+    } else if (this.matchToken("INCREMENT")) {
+      // ++a はUnaryOpとして処理
+      this.nextToken();
+      const expr = this.parseUnary();
+      // ++a は a = a + 1 に変換し、a + 1を返す
+      return new BinaryOpNode("=", expr, new BinaryOpNode("+", expr, new LiteralNode(1)));
+    } else if (this.matchToken("DECREMENT")) {
+      // --a はUnaryOpとして処理
+      this.nextToken();
+      const expr = this.parseUnary();
+      // --a は a = a - 1 に変換し、a - 1を返す
+      return new BinaryOpNode("=", expr, new BinaryOpNode("-", expr, new LiteralNode(1)));
     }
     return this.parsePrimary();
   }
@@ -740,6 +922,14 @@ class Parser {
             }
             this.nextToken(); // ']' 消費
             expr = new ArrayAccessNode(expr, indexExpr);
+          } else if (this.matchToken("DOT")) {
+            this.nextToken(); // '.' 消費
+            if (!this.matchToken("IDENTIFIER")) {
+              this.error("Expected identifier after '.'");
+            }
+            const propName = this.nextToken().value;
+            // プロパティアクセスを表現するドット表記
+            expr = new PropertyAccessNode(expr, propName);
           } else {
             break;
           }
@@ -794,11 +984,42 @@ function generateJavaScriptFromAST(ast, indent = 0) {
     case "Program":
       const imports = (ast.imports || []).map(im => `// import ${im.path}`).join('\n');
       const topLevel = (ast.topLevelElements || []).map(e => generateJavaScriptFromAST(e, indent)).join('\n\n');
-      return `${imports}\n\n${topLevel}`;
+      
+      // クラスのインスタンス化コードを追加（変数がすでに宣言されていない場合のみ）
+      const classNodes = ast.topLevelElements.filter(e => e.type === "Class");
+      const varDecls = ast.topLevelElements.filter(e => e.type === "VariableDeclaration").map(v => v.varName);
+      
+      const instanceCreation = classNodes
+        .filter(classNode => !varDecls.includes(classNode.name.toLowerCase()))
+        .map(classNode => 
+          `\n// ${classNode.name}のインスタンスを作成\nconst ${classNode.name.toLowerCase()} = new ${classNode.name}();`
+        ).join('\n');
+      
+      return `${imports}\n\n${topLevel}${instanceCreation}`;
 
     case "Class":
-      const classMembers = ast.members.map(member => generateJavaScriptFromAST(member, indent)).join('\n');
-      return `${INDENT}// Class ${ast.name}\n${classMembers}`;
+      const classMembers = ast.members.map(member => {
+        // メソッドの場合はprototypeに追加する形式に変換
+        if (member.type === "Method") {
+          const params = (member.params || []).map(p => p.name).join(', ');
+          const body = generateJavaScriptMethodBody(member.body, indent + 1, member.params.map(p => p.name));
+          return `${INDENT}${ast.name}.prototype.${member.name} = function(${params}) {\n${body}\n${INDENT}};`;
+        } 
+        // フィールドの場合はコンストラクタ内で初期化する
+        else if (member.type === "Field") {
+          return null; // コンストラクタ内で処理するため、ここではnullを返す
+        }
+        return generateJavaScriptFromAST(member, indent);
+      }).filter(Boolean).join('\n');
+      
+      // フィールドを抽出してコンストラクタで初期化
+      const fields = ast.members.filter(member => member.type === "Field");
+      const fieldsInit = fields.map(field => {
+        const fieldInit = generateJavaScriptFromAST(field.initializer, 0);
+        return `${INDENT}  this.${field.fieldName} = ${fieldInit};`;
+      }).join('\n');
+      
+      return `${INDENT}function ${ast.name}() {\n${fieldsInit}\n${INDENT}}\n\n${classMembers}`;
 
     case "Field":
       const fieldInit = generateJavaScriptFromAST(ast.initializer, 0);
@@ -806,7 +1027,7 @@ function generateJavaScriptFromAST(ast, indent = 0) {
 
     case "Method":
       const params = (ast.params || []).map(p => p.name).join(', ');
-      const body = generateJavaScriptFromAST(ast.body, indent + 1);
+      const body = generateJavaScriptMethodBody(ast.body, indent + 1, ast.params.map(p => p.name));
       return `${INDENT}function ${ast.name}(${params}) {\n${body}\n${INDENT}}`;
 
     case "GlobalFunction":
@@ -815,7 +1036,7 @@ function generateJavaScriptFromAST(ast, indent = 0) {
       return `${INDENT}function ${ast.name}(${gParams}) {\n${gBody}\n${INDENT}}`;
 
     case "VariableDeclaration":
-      const varValue = generateJavaScriptFromAST(ast.initializer, 0);
+      const varValue = ast.initializer ? generateJavaScriptFromAST(ast.initializer) : "null";
       return `${INDENT}let ${ast.varName} = ${varValue};`;
 
     case "Block":
@@ -877,6 +1098,11 @@ function generateJavaScriptFromAST(ast, indent = 0) {
       const castExpr = generateJavaScriptFromAST(ast.expr);
       if (ast.castType === "int") return `Math.floor(${castExpr})`;
       else return `${castExpr} /* cast to ${ast.castType} */`;
+
+    case "PropertyAccess":
+      const obj = generateJavaScriptFromAST(ast.object);
+      const prop = ast.property;
+      return `${obj}.${prop}`;
 
     default:
       return `${INDENT}// Unhandled AST node: ${ast.type}`;
@@ -1108,3 +1334,122 @@ function tokenize(code) {
   return new Lexer(code).tokenize();
 }
 // window.tokenize = tokenize;
+
+// モジュールエクスポート（Node.js環境用）
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    tokenize,
+    Parser,
+    generateJavaScriptFromAST,
+    // AST ノードクラス
+    ImportNode,
+    ProgramNode,
+    ClassNode,
+    FieldNode,
+    MethodNode,
+    GlobalFunctionNode,
+    VariableDeclarationNode,
+    BlockNode,
+    ExpressionStatementNode,
+    IfStatementNode,
+    WhileStatementNode,
+    ForStatementNode,
+    ReturnStatementNode,
+    BinaryOpNode,
+    UnaryOpNode,
+    LiteralNode,
+    IdentifierNode,
+    FunctionCallNode,
+    ArrayAccessNode,
+    NewArrayNode,
+    NewObjectNode,
+    CastNode,
+    PropertyAccessNode,
+    // 実行関数
+    runPDE
+  };
+}
+
+// メソッド内部の変数アクセスを変換するヘルパー関数
+function generateJavaScriptMethodBody(ast, indent = 0, paramNames = []) {
+  const INDENT = '  '.repeat(indent);
+  if (!ast) return '';
+
+  // ProcessingのAPI関数リスト
+  const processingFunctions = [
+    'rect', 'ellipse', 'line', 'background', 'fill', 'stroke', 
+    'noFill', 'noStroke', 'size', 'translate', 'rotate', 'scale', 
+    'pushMatrix', 'popMatrix', 'bezier', 'curve',
+    // マウス関連の関数
+    'mousePressed', 'mouseReleased', 'mouseMoved', 'mouseDragged',
+    // キーボード関連の関数
+    'keyPressed', 'keyReleased',
+    // テキスト関連の関数
+    'text', 'textSize',
+    // 数学関連の関数
+    'random', 'dist', 'min', 'max', 'map', 'constrain'
+  ];
+
+  // BlockNodeの場合は各ステートメントを再帰的に処理
+  if (ast.type === "Block") {
+    return (ast.statements || []).map(stmt => generateJavaScriptMethodBody(stmt, indent, paramNames)).join('\n');
+  }
+  
+  // 他のノードはgenerateJavaScriptFromASTを呼び出すが、Identifierの扱いを修正
+  const originalGenerateIdentifier = generateJavaScriptFromAST;
+  
+  // 新しい関数を一時的に定義
+  generateJavaScriptFromAST = function(node, indentLevel = 0) {
+    if (node && node.type === "Identifier") {
+      // ProcessingのAPI関数はthis.プレフィックスを付けない
+      if (processingFunctions.includes(node.name)) {
+        return node.name;
+      }
+      // マウスとキーボード関連のグローバル変数
+      else if (['mouseX', 'mouseY', 'pmouseX', 'pmouseY', 'mouseIsPressed', 'mouseButton',
+               'keyIsPressed', 'key', 'keyCode', 'LEFT', 'RIGHT', 'CENTER',
+               'UP', 'DOWN', 'LEFT_ARROW', 'RIGHT_ARROW', 'ENTER', 'RETURN',
+               'SHIFT', 'CTRL', 'ALT', 'BACKSPACE', 'TAB', 'ESCAPE', 
+               'width', 'height', 'textFont', 'textSize_val'].includes(node.name)) {
+        return node.name;
+      }
+      // パラメータでない識別子はthis.プレフィックスを追加
+      else if (!paramNames.includes(node.name)) {
+        const localVars = findLocalVariables(ast);
+        if (!localVars.includes(node.name)) {
+          return `this.${node.name}`;
+        }
+      }
+    }
+    return originalGenerateIdentifier(node, indentLevel);
+  };
+  
+  // 通常の変換処理を呼び出す
+  const result = originalGenerateIdentifier(ast, indent);
+  
+  // 元の関数を復元
+  generateJavaScriptFromAST = originalGenerateIdentifier;
+  
+  return result;
+}
+
+// ブロック内のローカル変数を検索する補助関数
+function findLocalVariables(node) {
+  const localVars = [];
+  
+  if (!node) return localVars;
+  
+  // 変数宣言を見つける
+  if (node.type === "VariableDeclaration") {
+    localVars.push(node.varName);
+  }
+  // ステートメントリストを再帰的に処理
+  else if (node.type === "Block" && node.statements) {
+    for (const stmt of node.statements) {
+      localVars.push(...findLocalVariables(stmt));
+    }
+  }
+  // その他のノードタイプに対しても必要に応じて処理
+  
+  return localVars;
+}
