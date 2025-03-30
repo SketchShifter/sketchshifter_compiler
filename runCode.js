@@ -86,6 +86,7 @@ function runPDE() {
     .then(code => {
       try {
         const tokens = tokenize(code);
+        console.log("トークン化結果：", tokens);
         const parser = new Parser(tokens);
         const ast = parser.parseProgram();
         const jsCode = generateJavaScriptFromAST(ast);
@@ -408,7 +409,7 @@ class Parser {
           if (this.matchToken("ASSIGN")) {
             this.nextToken();
             initializer = this.parseExpression();
-          }
+          }  
           if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
           this.nextToken();
           return new FieldNode(typeStr, name, initializer);
@@ -446,10 +447,12 @@ class Parser {
         return new GlobalFunctionNode(retType, name, func.params, func.body);
       } else {
         let initializer = null;
+
         if (this.matchToken("ASSIGN")) {
           this.nextToken();
           initializer = this.parseExpression();
-        }
+        }  
+        
         if (!this.matchToken("SEMICOLON")) this.error("Expected ; after global variable");
         this.nextToken();
         return new VariableDeclarationNode(retType, name, initializer);
@@ -559,12 +562,41 @@ class Parser {
 
   parseAssignment() {
     let left = this.parseComparison();
-    while (this.matchToken("ASSIGN")) {
-      const op = this.currentToken().value;
+
+    if(this.matchToken("INCREMENT") ) {
+      
+      this.nextToken();
+      left = new BinaryOpNode("=", left, new BinaryOpNode("+", left, new LiteralNode(1)));
+    } else if(this.matchToken("DECREMENT") ) {
+      
+      this.nextToken();
+      left = new BinaryOpNode("=", left, new BinaryOpNode("-", left, new LiteralNode(1)));
+    } else if(this.matchToken("PLUSEQ")) {
       this.nextToken();
       const right = this.parseAssignment();
-      left = new BinaryOpNode(op, left, right);
+      left = new BinaryOpNode("=", left, new BinaryOpNode("+", left, right));
+    } else if(this.matchToken("MINUSEQ")) {
+      this.nextToken();
+      const right = this.parseAssignment();
+      left = new BinaryOpNode("=", left, new BinaryOpNode("-", left, right));
+    } else if(this.matchToken("MULTEQ")) {
+      this.nextToken();
+      const right = this.parseAssignment();
+      left = new BinaryOpNode("=", left, new BinaryOpNode("*", left, right));
+    } else if(this.matchToken("DIVEQ")) {
+      this.nextToken();
+      const right = this.parseAssignment();
+      left = new BinaryOpNode("=", left, new BinaryOpNode("/", left, right));
+    } else {
+      
+      while (this.matchToken("ASSIGN")) {
+        const op = this.currentToken().value;
+        this.nextToken();
+        const right = this.parseAssignment();
+        left = new BinaryOpNode(op, left, right);
+      }
     }
+
     return left;
   }
 
@@ -950,7 +982,33 @@ class Lexer {
       }
     }
 
-    // 二文字演算子
+    // 二文字演算子（先にチェック）
+    if (ch === "+" && this.peek() === "+") {
+      this.advance(); this.advance();
+      return new Token("INCREMENT", "++");
+    }
+    if (ch === "-" && this.peek() === "-") {
+      this.advance(); this.advance();
+      return new Token("DECREMENT", "--");
+    }
+    if (ch === "+" && this.peek() === "=") {
+      this.advance(); this.advance();
+      return new Token("PLUSEQ", "+=");
+    }
+    if (ch === "-" && this.peek() === "=") {
+      this.advance(); this.advance();
+      return new Token("MINUSEQ", "-=");
+    }
+    if (ch === "*" && this.peek() === "=") {
+      this.advance(); this.advance();
+      return new Token("MULTEQ", "*=");
+    }
+    if (ch === "/" && this.peek() === "=") {
+      this.advance(); this.advance();
+      return new Token("DIVEQ", "/=");
+    }
+
+    // 既存の2文字演算子
     if (ch === "=") {
       if (this.peek() === "=") {
         this.advance(); this.advance();
@@ -1000,6 +1058,7 @@ class Lexer {
       "[": "LBRACKET", "]": "RBRACKET",
       ";": "SEMICOLON", ",": "COMMA", ".": "DOT"
     };
+
     if (ch in singleChars) {
       this.advance();
       return new Token(singleChars[ch], ch);
