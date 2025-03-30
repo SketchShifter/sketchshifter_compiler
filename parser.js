@@ -2,562 +2,581 @@
 // AST ノードの定義 (実装方針はProcessing.js 参照)
 // --------------------------------------------------
 class ImportNode {
-    constructor(path) {
-      this.type = "Import";
-      this.path = path;
-    }
+  constructor(path) {
+    this.type = "Import";
+    this.path = path;
   }
-  
-  class ProgramNode {
-    constructor(imports, topLevelElements) {
-      this.type = "Program";
-      this.imports = imports;
-      this.topLevelElements = topLevelElements;
-    }
+}
+
+class ProgramNode {
+  constructor(imports, topLevelElements) {
+    this.type = "Program";
+    this.imports = imports;
+    this.topLevelElements = topLevelElements;
   }
-  
-  class ClassNode {
-    constructor(name, members) {
-      this.type = "Class";
-      this.name = name;
-      this.members = members;
-    }
+}
+
+class ClassNode {
+  constructor(name, members) {
+    this.type = "Class";
+    this.name = name;
+    this.members = members;
   }
-  
-  class FieldNode {
-    constructor(fieldType, fieldName, initializer) {
-      this.type = "Field";
-      this.fieldType = fieldType;
-      this.fieldName = fieldName;
-      this.initializer = initializer;
-    }
+}
+
+class FieldNode {
+  constructor(fieldType, fieldName, initializer) {
+    this.type = "Field";
+    this.fieldType = fieldType;
+    this.fieldName = fieldName;
+    this.initializer = initializer;
   }
-  
-  class MethodNode {
-    constructor(returnType, name, params, body) {
-      this.type = "Method";
-      this.returnType = returnType;
-      this.name = name;
-      this.params = params; // 配列 [{ type, name }, ...]
-      this.body = body;     // BlockNode
-    }
+}
+
+class MethodNode {
+  constructor(returnType, name, params, body) {
+    this.type = "Method";
+    this.returnType = returnType;
+    this.name = name;
+    this.params = params; // 配列 [{ type, name }, ...]
+    this.body = body;     // BlockNode
   }
-  
-  class GlobalFunctionNode {
-    constructor(returnType, name, params, body) {
-      this.type = "GlobalFunction";
-      this.returnType = returnType;
-      this.name = name;
-      this.params = params;
-      this.body = body;
-    }
+}
+
+class GlobalFunctionNode {
+  constructor(returnType, name, params, body) {
+    this.type = "GlobalFunction";
+    this.returnType = returnType;
+    this.name = name;
+    this.params = params;
+    this.body = body;
   }
-  
-  class VariableDeclarationNode {
-    constructor(varType, varName, initializer) {
-      this.type = "VariableDeclaration";
-      this.varType = varType;
-      this.varName = varName;
-      this.initializer = initializer;
-    }
+}
+
+class VariableDeclarationNode {
+  constructor(varType, varName, initializer) {
+    this.type = "VariableDeclaration";
+    this.varType = varType;
+    this.varName = varName;
+    this.initializer = initializer;
   }
-  
-  class BlockNode {
-    constructor(statements) {
-      this.type = "Block";
-      this.statements = statements;
-    }
+}
+
+class BlockNode {
+  constructor(statements) {
+    this.type = "Block";
+    this.statements = statements;
   }
-  
-  class ExpressionStatementNode {
-    constructor(expression) {
-      this.type = "ExpressionStatement";
-      this.expression = expression;
-    }
+}
+
+class ExpressionStatementNode {
+  constructor(expression) {
+    this.type = "ExpressionStatement";
+    this.expression = expression;
   }
-  
-  class IfStatementNode {
-    constructor(condition, thenBlock, elseBlock) {
-      this.type = "IfStatement";
-      this.condition = condition;
-      this.thenBlock = thenBlock;
-      this.elseBlock = elseBlock;
-    }
+}
+
+class IfStatementNode {
+  constructor(condition, thenBlock, elseBlock) {
+    this.type = "IfStatement";
+    this.condition = condition;
+    this.thenBlock = thenBlock;
+    this.elseBlock = elseBlock;
   }
-  
-  class WhileStatementNode {
-    constructor(condition, body) {
-      this.type = "WhileStatement";
-      this.condition = condition;
-      this.body = body;
-    }
+}
+
+class WhileStatementNode {
+  constructor(condition, body) {
+    this.type = "WhileStatement";
+    this.condition = condition;
+    this.body = body;
   }
-  
-  class ForStatementNode {
-    constructor(init, condition, update, body) {
-      this.type = "ForStatement";
-      this.init = init;
-      this.condition = condition;
-      this.update = update;
-      this.body = body;
-    }
+}
+
+class ForStatementNode {
+  constructor(init, condition, update, body) {
+    this.type = "ForStatement";
+    this.init = init;
+    this.condition = condition;
+    this.update = update;
+    this.body = body;
   }
-  
-  class ReturnStatementNode {
-    constructor(expression) {
-      this.type = "ReturnStatement";
-      this.expression = expression; // null 可
-    }
+}
+
+class ReturnStatementNode {
+  constructor(expression) {
+    this.type = "ReturnStatement";
+    this.expression = expression; // null 可
   }
-  
-  class BinaryOpNode {
-    constructor(operator, left, right) {
-      this.type = "BinaryOp";
-      this.operator = operator;
-      this.left = left;
-      this.right = right;
-    }
+}
+
+class BinaryOpNode {
+  constructor(operator, left, right) {
+    this.type = "BinaryOp";
+    this.operator = operator;
+    this.left = left;
+    this.right = right;
   }
-  
-  class UnaryOpNode {
-    constructor(operator, expr) {
-      this.type = "UnaryOp";
-      this.operator = operator;
-      this.expr = expr;
-    }
+}
+
+class UnaryOpNode {
+  constructor(operator, expr) {
+    this.type = "UnaryOp";
+    this.operator = operator;
+    this.expr = expr;
   }
-  
-  class LiteralNode {
-    constructor(value, literalType = "number") {
-      this.type = "Literal";
-      this.value = value;
-      this.literalType = literalType;
-    }
+}
+
+class LiteralNode {
+  constructor(value, literalType = "number") {
+    this.type = "Literal";
+    this.value = value;
+    this.literalType = literalType;
   }
-  
-  class IdentifierNode {
-    constructor(name) {
-      this.type = "Identifier";
-      this.name = name;
-    }
+}
+
+class IdentifierNode {
+  constructor(name) {
+    this.type = "Identifier";
+    this.name = name;
   }
-  
-  class FunctionCallNode {
-    constructor(callee, args) {
-      this.type = "FunctionCall";
-      this.callee = callee;
-      this.args = args;
-    }
+}
+
+class FunctionCallNode {
+  constructor(callee, args) {
+    this.type = "FunctionCall";
+    this.callee = callee;
+    this.args = args;
   }
-  
-  class ArrayAccessNode {
-    constructor(arrayExpr, indexExpr) {
-      this.type = "ArrayAccess";
-      this.arrayExpr = arrayExpr;
-      this.indexExpr = indexExpr;
-    }
+}
+
+class ArrayAccessNode {
+  constructor(arrayExpr, indexExpr) {
+    this.type = "ArrayAccess";
+    this.arrayExpr = arrayExpr;
+    this.indexExpr = indexExpr;
   }
-  
-  class NewArrayNode {
-    constructor(arrayType, sizeExpr) {
-      this.type = "NewArray";
-      this.arrayType = arrayType;
-      this.sizeExpr = sizeExpr;
-    }
+}
+
+class NewArrayNode {
+  constructor(arrayType, sizeExpr) {
+    this.type = "NewArray";
+    this.arrayType = arrayType;
+    this.sizeExpr = sizeExpr;
   }
-  
-  class NewObjectNode {
-    constructor(className, args) {
-      this.type = "NewObject";
-      this.className = className;
-      this.args = args;
-    }
+}
+
+class NewObjectNode {
+  constructor(className, args) {
+    this.type = "NewObject";
+    this.className = className;
+    this.args = args;
+  }
+}
+
+class CastNode {
+  constructor(castType, expr) {
+    this.type = "Cast";
+    this.castType = castType;
+    this.expr = expr;
+  }
+}  
+
+// --------------------------------------------------
+// パーサ (Processing.js の AST 作成ロジックを参考)
+// --------------------------------------------------
+class Parser {
+  constructor(tokens) {
+    this.tokens = tokens;
+    this.currentIndex = 0;
   }
 
-  class CastNode {
-    constructor(castType, expr) {
-      this.type = "Cast";
-      this.castType = castType;
-      this.expr = expr;
-    }
-  }  
+  currentToken() {
+    return this.tokens[this.currentIndex] || null;
+  }
 
-  // --------------------------------------------------
-  // パーサ (Processing.js の AST 作成ロジックを参考)
-  // --------------------------------------------------
-  class Parser {
-    constructor(tokens) {
-      this.tokens = tokens;
-      this.currentIndex = 0;
+  nextToken() {
+    const tok = this.currentToken();
+    this.currentIndex++;
+    return tok;
+  }
+
+  matchToken(type, value = null) {
+    const tok = this.currentToken();
+    if (!tok) return false;
+    if (tok.type !== type) return false;
+    if (value !== null && tok.value !== value) return false;
+    return true;
+  }
+
+  error(msg) {
+    throw new Error("Parse Error: " + msg + " at token index " + this.currentIndex);
+  }
+
+  // トップレベルの解析: import 文、クラス定義、グローバル関数など
+  parseProgram() {
+    const imports = [];
+    const topLevelElements = [];
+
+    // import 文の解析
+    while (this.matchToken("KEYWORD", "import")) {
+      imports.push(this.parseImportStatement());
     }
-  
-    currentToken() {
-      return this.tokens[this.currentIndex] || null;
+
+    while (this.currentToken() !== null) {
+      if (this.matchToken("KEYWORD", "class")) {
+        topLevelElements.push(this.parseClassDeclaration());
+      } else {
+        topLevelElements.push(this.parseGlobalElement());
+      }
     }
-  
-    nextToken() {
+    return new ProgramNode(imports, topLevelElements);
+  }
+
+  parseImportStatement() {
+    // "import" はすでにマッチしている前提
+    this.nextToken(); // consume "import"
+    let pathParts = [];
+    while (!this.matchToken("SEMICOLON")) {
       const tok = this.currentToken();
-      this.currentIndex++;
-      return tok;
-    }
-  
-    matchToken(type, value = null) {
-      const tok = this.currentToken();
-      if (!tok) return false;
-      if (tok.type !== type) return false;
-      if (value !== null && tok.value !== value) return false;
-      return true;
-    }
-  
-    error(msg) {
-      throw new Error("Parse Error: " + msg + " at token index " + this.currentIndex);
-    }
-  
-    // トップレベルの解析: import 文、クラス定義、グローバル関数など
-    parseProgram() {
-      const imports = [];
-      const topLevelElements = [];
-  
-      // import 文の解析
-      while (this.matchToken("KEYWORD", "import")) {
-        imports.push(this.parseImportStatement());
-      }
-  
-      while (this.currentToken() !== null) {
-        if (this.matchToken("KEYWORD", "class")) {
-          topLevelElements.push(this.parseClassDeclaration());
-        } else {
-          topLevelElements.push(this.parseGlobalElement());
-        }
-      }
-      return new ProgramNode(imports, topLevelElements);
-    }
-  
-    parseImportStatement() {
-      // "import" はすでにマッチしている前提
-      this.nextToken(); // consume "import"
-      let pathParts = [];
-      while (!this.matchToken("SEMICOLON")) {
-        const tok = this.currentToken();
-        if (!tok) this.error("Unexpected EOF in import");
-        pathParts.push(tok.value);
-        this.nextToken();
-      }
-      this.nextToken(); // consume SEMICOLON
-      return new ImportNode(pathParts.join(""));
-    }
-  
-    parseClassDeclaration() {
-      this.nextToken(); // consume "class"
-      if (!this.matchToken("IDENTIFIER")) this.error("Class name expected");
-      const className = this.currentToken().value;
+      if (!tok) this.error("Unexpected EOF in import");
+      pathParts.push(tok.value);
       this.nextToken();
-  
-      if (!this.matchToken("LBRACE")) this.error("Expected { after class name");
-      this.nextToken(); // consume "{"
-  
-      const members = [];
-      while (!this.matchToken("RBRACE")) {
-        if (!this.currentToken()) this.error("Unexpected EOF in class body");
-        members.push(this.parseClassMember());
-      }
-      this.nextToken(); // consume "}"
-      return new ClassNode(className, members);
     }
+    this.nextToken(); // consume SEMICOLON
+    return new ImportNode(pathParts.join(""));
+  }
 
-    parseType() {
-        // 既に TYPE トークンが来ているのでその値を取得
-        let typeStr = this.nextToken().value; // 例: "int"
-        // 配列型対応: もし次が LBRACKET なら "[]" を追加
-        while (this.matchToken("LBRACKET")) {
-          this.nextToken(); // consume '['
-          if (!this.matchToken("RBRACKET")) {
-            this.error("Expected ']' for array type");
-          }
-          this.nextToken(); // consume ']'
-          typeStr += "[]";
-        }
-        return typeStr;
-      }            
-  
-      parseClassMember() {
-        if (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void")) {
-          // 型のパースをヘルパー関数で行う
-          const typeStr = this.parseType(); 
-          if (!this.matchToken("IDENTIFIER")) this.error("Member name expected");
-          const name = this.nextToken().value;
-          if (this.matchToken("LPAREN")) {
-            return this.parseMethodDeclaration(typeStr, name);
-          } else {
-            let initializer = null;
-            if (this.matchToken("ASSIGN")) {
-              this.nextToken();
-              initializer = this.parseExpression();
-            }
-            if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
-            this.nextToken();
-            return new FieldNode(typeStr, name, initializer);
-          }
-        }
-        this.error("Invalid class member");
-      }      
-  
-    parseMethodDeclaration(returnType, name) {
-      // メソッド宣言: 引数リストとブロック
-      this.nextToken(); // consume "("
-      const params = [];
-      while (!this.matchToken("RPAREN")) {
-        // param: TYPE IDENTIFIER
-        if (!this.matchToken("TYPE")) this.error("Parameter type expected");
-        const pType = this.nextToken().value;
-        if (!this.matchToken("IDENTIFIER")) this.error("Parameter name expected");
-        const pName = this.nextToken().value;
-        params.push({ type: pType, name: pName });
-        if (this.matchToken("COMMA")) this.nextToken();
-      }
-      this.nextToken(); // consume ")"
-      const body = this.parseBlock();
-      return new MethodNode(returnType, name, params, body);
+  parseClassDeclaration() {
+    this.nextToken(); // consume "class"
+    if (!this.matchToken("IDENTIFIER")) this.error("Class name expected");
+    const className = this.currentToken().value;
+    this.nextToken();
+
+    if (!this.matchToken("LBRACE")) this.error("Expected { after class name");
+    this.nextToken(); // consume "{"
+
+    const members = [];
+    while (!this.matchToken("RBRACE")) {
+      if (!this.currentToken()) this.error("Unexpected EOF in class body");
+      members.push(this.parseClassMember());
     }
-  
-    parseGlobalElement() {
-      // グローバル関数または変数
+    this.nextToken(); // consume "}"
+    return new ClassNode(className, members);
+  }
+
+  parseType() {
+      // 既に TYPE トークンが来ているのでその値を取得
+      let typeStr = this.nextToken().value; // 例: "int"
+      // 配列型対応: もし次が LBRACKET なら "[]" を追加
+      while (this.matchToken("LBRACKET")) {
+        this.nextToken(); // consume '['
+        if (!this.matchToken("RBRACKET")) {
+          this.error("Expected ']' for array type");
+        }
+        this.nextToken(); // consume ']'
+        typeStr += "[]";
+      }
+      return typeStr;
+    }            
+
+    parseClassMember() {
       if (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void")) {
-        const retType = this.nextToken().value;
-        if (!this.matchToken("IDENTIFIER")) this.error("Global element name expected");
+        // 型のパースをヘルパー関数で行う
+        const typeStr = this.parseType(); 
+        if (!this.matchToken("IDENTIFIER")) this.error("Member name expected");
         const name = this.nextToken().value;
         if (this.matchToken("LPAREN")) {
-          const func = this.parseMethodDeclaration(retType, name);
-          return new GlobalFunctionNode(retType, name, func.params, func.body);
+          return this.parseMethodDeclaration(typeStr, name);
         } else {
           let initializer = null;
           if (this.matchToken("ASSIGN")) {
             this.nextToken();
             initializer = this.parseExpression();
           }
-          if (!this.matchToken("SEMICOLON")) this.error("Expected ; after global variable");
+          if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
           this.nextToken();
-          return new VariableDeclarationNode(retType, name, initializer);
+          return new FieldNode(typeStr, name, initializer);
         }
       }
-      this.error("Unknown global element");
+      this.error("Invalid class member");
+    }      
+
+  parseMethodDeclaration(returnType, name) {
+    // メソッド宣言: 引数リストとブロック
+    this.nextToken(); // consume "("
+    const params = [];
+    while (!this.matchToken("RPAREN")) {
+      // param: TYPE IDENTIFIER
+      if (!this.matchToken("TYPE")) this.error("Parameter type expected");
+      const pType = this.nextToken().value;
+      if (!this.matchToken("IDENTIFIER")) this.error("Parameter name expected");
+      const pName = this.nextToken().value;
+      params.push({ type: pType, name: pName });
+      if (this.matchToken("COMMA")) this.nextToken();
     }
-  
-    parseBlock() {
-      if (!this.matchToken("LBRACE")) this.error("Expected { for block");
-      this.nextToken(); // consume "{"
-      const statements = [];
-      while (!this.matchToken("RBRACE")) {
-        if (!this.currentToken()) this.error("Unexpected EOF in block");
-        statements.push(this.parseStatement());
-      }
-      this.nextToken(); // consume "}"
-      return new BlockNode(statements);
-    }
-  
-    parseStatement() {
-      if (this.matchToken("KEYWORD", "if")) return this.parseIfStatement();
-      if (this.matchToken("KEYWORD", "while")) return this.parseWhileStatement();
-      if (this.matchToken("KEYWORD", "for")) return this.parseForStatement();
-      if (this.matchToken("KEYWORD", "return")) return this.parseReturnStatement();
-      if (this.matchToken("LBRACE")) return this.parseBlock();
-      // 変数宣言または式文
-      if (this.matchToken("TYPE")) return this.parseLocalVariableDeclaration();
-      const expr = this.parseExpression();
-      if (!this.matchToken("SEMICOLON")) this.error("Expected ; after expression");
-      this.nextToken(); // consume ";"
-      return new ExpressionStatementNode(expr);
-    }
-  
-    parseIfStatement() {
-      this.nextToken(); // consume "if"
-      if (!this.matchToken("LPAREN")) this.error("Expected ( after if");
-      this.nextToken();
-      const condition = this.parseExpression();
-      if (!this.matchToken("RPAREN")) this.error("Expected ) after if condition");
-      this.nextToken();
-      const thenBlock = this.parseStatement();
-      let elseBlock = null;
-      if (this.matchToken("KEYWORD", "else")) {
-        this.nextToken();
-        elseBlock = this.parseStatement();
-      }
-      return new IfStatementNode(condition, thenBlock, elseBlock);
-    }
-  
-    parseWhileStatement() {
-      this.nextToken(); // consume "while"
-      if (!this.matchToken("LPAREN")) this.error("Expected ( after while");
-      this.nextToken();
-      const condition = this.parseExpression();
-      if (!this.matchToken("RPAREN")) this.error("Expected ) after while condition");
-      this.nextToken();
-      const body = this.parseStatement();
-      return new WhileStatementNode(condition, body);
-    }
-  
-    parseForStatement() {
-      this.nextToken(); // consume "for"
-      if (!this.matchToken("LPAREN")) this.error("Expected ( after for");
-      this.nextToken();
-      const init = this.parseExpression();
-      if (!this.matchToken("SEMICOLON")) this.error("Expected ; in for loop");
-      this.nextToken();
-      const condition = this.parseExpression();
-      if (!this.matchToken("SEMICOLON")) this.error("Expected ; after for condition");
-      this.nextToken();
-      const update = this.parseExpression();
-      if (!this.matchToken("RPAREN")) this.error("Expected ) after for update");
-      this.nextToken();
-      const body = this.parseStatement();
-      return new ForStatementNode(init, condition, update, body);
-    }
-  
-    parseReturnStatement() {
-      this.nextToken(); // consume "return"
-      let expr = null;
-      if (!this.matchToken("SEMICOLON")) {
-        expr = this.parseExpression();
-      }
-      if (!this.matchToken("SEMICOLON")) this.error("Expected ; after return");
-      this.nextToken();
-      return new ReturnStatementNode(expr);
-    }
-  
-    parseLocalVariableDeclaration() {
-      const type = this.nextToken().value; // TYPE
-      if (!this.matchToken("IDENTIFIER")) this.error("Variable name expected");
+    this.nextToken(); // consume ")"
+    const body = this.parseBlock();
+    return new MethodNode(returnType, name, params, body);
+  }
+
+  parseGlobalElement() {
+    // グローバル関数または変数
+    if (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void")) {
+      const retType = this.nextToken().value;
+      if (!this.matchToken("IDENTIFIER")) this.error("Global element name expected");
       const name = this.nextToken().value;
-      let initializer = null;
-      if (this.matchToken("ASSIGN")) {
+      if (this.matchToken("LPAREN")) {
+        const func = this.parseMethodDeclaration(retType, name);
+        return new GlobalFunctionNode(retType, name, func.params, func.body);
+      } else {
+        let initializer = null;
+        if (this.matchToken("ASSIGN")) {
+          this.nextToken();
+          initializer = this.parseExpression();
+        }
+        if (!this.matchToken("SEMICOLON")) this.error("Expected ; after global variable");
         this.nextToken();
-        initializer = this.parseExpression();
+        return new VariableDeclarationNode(retType, name, initializer);
       }
-      if (!this.matchToken("SEMICOLON")) this.error("Expected ; after variable declaration");
+    }
+    this.error("Unknown global element");
+  }
+
+  parseBlock() {
+    if (!this.matchToken("LBRACE")) this.error("Expected { for block");
+    this.nextToken(); // consume "{"
+    const statements = [];
+    while (!this.matchToken("RBRACE")) {
+      if (!this.currentToken()) this.error("Unexpected EOF in block");
+      statements.push(this.parseStatement());
+    }
+    this.nextToken(); // consume "}"
+    return new BlockNode(statements);
+  }
+
+  parseStatement() {
+    if (this.matchToken("KEYWORD", "if")) return this.parseIfStatement();
+    if (this.matchToken("KEYWORD", "while")) return this.parseWhileStatement();
+    if (this.matchToken("KEYWORD", "for")) return this.parseForStatement();
+    if (this.matchToken("KEYWORD", "return")) return this.parseReturnStatement();
+    if (this.matchToken("LBRACE")) return this.parseBlock();
+    // 変数宣言または式文
+    if (this.matchToken("TYPE")) return this.parseLocalVariableDeclaration();
+    const expr = this.parseExpression();
+    if (!this.matchToken("SEMICOLON")) this.error("Expected ; after expression");
+    this.nextToken(); // consume ";"
+    return new ExpressionStatementNode(expr);
+  }
+
+  parseIfStatement() {
+    this.nextToken(); // consume "if"
+    if (!this.matchToken("LPAREN")) this.error("Expected ( after if");
+    this.nextToken();
+    const condition = this.parseExpression();
+    if (!this.matchToken("RPAREN")) this.error("Expected ) after if condition");
+    this.nextToken();
+    const thenBlock = this.parseStatement();
+    let elseBlock = null;
+    if (this.matchToken("KEYWORD", "else")) {
       this.nextToken();
-      return new VariableDeclarationNode(type, name, initializer);
+      elseBlock = this.parseStatement();
     }
-  
-    parseExpression() {
-      return this.parseAssignment();
+    return new IfStatementNode(condition, thenBlock, elseBlock);
+  }
+
+  parseWhileStatement() {
+    this.nextToken(); // consume "while"
+    if (!this.matchToken("LPAREN")) this.error("Expected ( after while");
+    this.nextToken();
+    const condition = this.parseExpression();
+    if (!this.matchToken("RPAREN")) this.error("Expected ) after while condition");
+    this.nextToken();
+    const body = this.parseStatement();
+    return new WhileStatementNode(condition, body);
+  }
+
+  parseForStatement() {
+    this.nextToken(); // consume "for"
+    if (!this.matchToken("LPAREN")) this.error("Expected ( after for");
+    this.nextToken();
+    const init = this.parseExpression();
+    if (!this.matchToken("SEMICOLON")) this.error("Expected ; in for loop");
+    this.nextToken();
+    const condition = this.parseExpression();
+    if (!this.matchToken("SEMICOLON")) this.error("Expected ; after for condition");
+    this.nextToken();
+    const update = this.parseExpression();
+    if (!this.matchToken("RPAREN")) this.error("Expected ) after for update");
+    this.nextToken();
+    const body = this.parseStatement();
+    return new ForStatementNode(init, condition, update, body);
+  }
+
+  parseReturnStatement() {
+    this.nextToken(); // consume "return"
+    let expr = null;
+    if (!this.matchToken("SEMICOLON")) {
+      expr = this.parseExpression();
     }
-  
-    parseAssignment() {
-      let left = this.parseComparison();
-      while (this.matchToken("ASSIGN")) {
-        const op = this.currentToken().value;
-        this.nextToken();
-        const right = this.parseAssignment();
-        left = new BinaryOpNode(op, left, right);
+    if (!this.matchToken("SEMICOLON")) this.error("Expected ; after return");
+    this.nextToken();
+    return new ReturnStatementNode(expr);
+  }
+
+  parseLocalVariableDeclaration() {
+    const type = this.nextToken().value; // TYPE
+    if (!this.matchToken("IDENTIFIER")) this.error("Variable name expected");
+    const name = this.nextToken().value;
+    let initializer = null;
+    if (this.matchToken("ASSIGN")) {
+      this.nextToken();
+      initializer = this.parseExpression();
+    }
+    if (!this.matchToken("SEMICOLON")) this.error("Expected ; after variable declaration");
+    this.nextToken();
+    return new VariableDeclarationNode(type, name, initializer);
+  }
+
+  parseExpression() {
+    return this.parseAssignment();
+  }
+
+  parseAssignment() {
+    let left = this.parseComparison();
+    while (this.matchToken("ASSIGN")) {
+      const op = this.currentToken().value;
+      this.nextToken();
+      const right = this.parseAssignment();
+      left = new BinaryOpNode(op, left, right);
+    }
+    return left;
+  }
+
+  parseComparison() {
+    let left = this.parseAddSub();
+    while (this.matchToken("EQ") || this.matchToken("NEQ") ||
+           this.matchToken("LT") || this.matchToken("LE") ||
+           this.matchToken("GT") || this.matchToken("GE")) {
+      const op = this.currentToken().value;
+      this.nextToken();
+      const right = this.parseAddSub();
+      left = new BinaryOpNode(op, left, right);
+    }
+    return left;
+  }
+
+  parseAddSub() {
+    let node = this.parseMulDiv();
+    while (this.matchToken("PLUS") || this.matchToken("MINUS")) {
+      const op = this.currentToken().value;
+      this.nextToken();
+      const right = this.parseMulDiv();
+      node = new BinaryOpNode(op, node, right);
+    }
+    return node;
+  }
+
+  parseMulDiv() {
+    let node = this.parseUnary();
+    while (this.matchToken("MULTIPLY") || this.matchToken("DIVIDE")) {
+      const op = this.currentToken().value;
+      this.nextToken();
+      const right = this.parseUnary();
+      node = new BinaryOpNode(op, node, right);
+    }
+    return node;
+  }
+
+  parseUnary() {
+    if (this.matchToken("NOT") || this.matchToken("MINUS")) {
+      const op = this.currentToken().value;
+      this.nextToken();
+      const expr = this.parseUnary();
+      return new UnaryOpNode(op, expr);
+    }
+    return this.parsePrimary();
+  }
+
+  parsePrimary() {
+      const tok = this.currentToken();
+      if (!tok) this.error("Unexpected EOF in expression");
+    
+      // まず、括弧付き式やキャストを処理
+      if (this.matchToken("LPAREN")) {
+        this.nextToken(); // '(' 消費
+        // キャストか括弧付き式か判定
+        if (this.matchToken("TYPE")) {
+          const castType = this.parseType();
+          if (!this.matchToken("RPAREN")) {
+            this.error("Expected ')' after cast type");
+          }
+          this.nextToken(); // ')' 消費
+          const expr = this.parseUnary();
+          return new CastNode(castType, expr);
+        } else {
+          const expr = this.parseExpression();
+          if (!this.matchToken("RPAREN")) {
+            this.error("Expected ')' after expression");
+          }
+          this.nextToken(); // ')' 消費
+          return expr;
+        }
       }
-      return left;
-    }
-  
-    parseComparison() {
-      let left = this.parseAddSub();
-      while (this.matchToken("EQ") || this.matchToken("NEQ") ||
-             this.matchToken("LT") || this.matchToken("LE") ||
-             this.matchToken("GT") || this.matchToken("GE")) {
-        const op = this.currentToken().value;
+    
+      // リテラルなどの処理
+      if (tok.type === "NUMBER") {
         this.nextToken();
-        const right = this.parseAddSub();
-        left = new BinaryOpNode(op, left, right);
+        return new LiteralNode(tok.value, "number");
       }
-      return left;
-    }
-  
-    parseAddSub() {
-      let node = this.parseMulDiv();
-      while (this.matchToken("PLUS") || this.matchToken("MINUS")) {
-        const op = this.currentToken().value;
+      if (tok.type === "STRING") {
         this.nextToken();
-        const right = this.parseMulDiv();
-        node = new BinaryOpNode(op, node, right);
+        return new LiteralNode(tok.value, "string");
       }
-      return node;
-    }
-  
-    parseMulDiv() {
-      let node = this.parseUnary();
-      while (this.matchToken("MULTIPLY") || this.matchToken("DIVIDE")) {
-        const op = this.currentToken().value;
+      if (tok.type === "CHAR") {
         this.nextToken();
-        const right = this.parseUnary();
-        node = new BinaryOpNode(op, node, right);
+        return new LiteralNode(tok.value, "char");
       }
-      return node;
-    }
-  
-    parseUnary() {
-      if (this.matchToken("NOT") || this.matchToken("MINUS")) {
-        const op = this.currentToken().value;
+      if (tok.type === "KEYWORD" && (tok.value === "true" || tok.value === "false")) {
         this.nextToken();
-        const expr = this.parseUnary();
-        return new UnaryOpNode(op, expr);
+        return new LiteralNode(tok.value, "boolean");
       }
-      return this.parsePrimary();
-    }
-  
-    parsePrimary() {
-        const tok = this.currentToken();
-        if (!tok) this.error("Unexpected EOF in expression");
-      
-        // まず、括弧付き式やキャストを処理
-        if (this.matchToken("LPAREN")) {
+    
+      // ここで KEYWORD "new" を優先して処理する
+      if (this.matchToken("KEYWORD", "new")) {
+        this.nextToken(); // "new" 消費
+        if (!this.matchToken("TYPE") && !this.matchToken("IDENTIFIER")) {
+          this.error("Expected type or class after 'new'");
+        }
+        const newType = this.nextToken().value;
+        if (this.matchToken("LBRACKET")) {
+          this.nextToken(); // '[' 消費
+          const sizeExpr = this.parseExpression();
+          if (!this.matchToken("RBRACKET")) {
+            this.error("Expected ']' in new array expression");
+          }
+          this.nextToken(); // ']' 消費
+          return new NewArrayNode(newType, sizeExpr);
+        } else if (this.matchToken("LPAREN")) {
           this.nextToken(); // '(' 消費
-          // キャストか括弧付き式か判定
-          if (this.matchToken("TYPE")) {
-            const castType = this.parseType();
-            if (!this.matchToken("RPAREN")) {
-              this.error("Expected ')' after cast type");
-            }
-            this.nextToken(); // ')' 消費
-            const expr = this.parseUnary();
-            return new CastNode(castType, expr);
-          } else {
-            const expr = this.parseExpression();
-            if (!this.matchToken("RPAREN")) {
-              this.error("Expected ')' after expression");
-            }
-            this.nextToken(); // ')' 消費
-            return expr;
+          const args = [];
+          while (!this.matchToken("RPAREN")) {
+            args.push(this.parseExpression());
+            if (this.matchToken("COMMA")) this.nextToken();
           }
+          this.nextToken(); // ')' 消費
+          return new NewObjectNode(newType, args);
+        } else {
+          this.error("Invalid syntax after 'new'");
         }
-      
-        // リテラルなどの処理
-        if (tok.type === "NUMBER") {
-          this.nextToken();
-          return new LiteralNode(tok.value, "number");
-        }
-        if (tok.type === "STRING") {
-          this.nextToken();
-          return new LiteralNode(tok.value, "string");
-        }
-        if (tok.type === "CHAR") {
-          this.nextToken();
-          return new LiteralNode(tok.value, "char");
-        }
-        if (tok.type === "KEYWORD" && (tok.value === "true" || tok.value === "false")) {
-          this.nextToken();
-          return new LiteralNode(tok.value, "boolean");
-        }
-      
-        // ここで KEYWORD "new" を優先して処理する
-        if (this.matchToken("KEYWORD", "new")) {
-          this.nextToken(); // "new" 消費
-          if (!this.matchToken("TYPE") && !this.matchToken("IDENTIFIER")) {
-            this.error("Expected type or class after 'new'");
-          }
-          const newType = this.nextToken().value;
-          if (this.matchToken("LBRACKET")) {
-            this.nextToken(); // '[' 消費
-            const sizeExpr = this.parseExpression();
-            if (!this.matchToken("RBRACKET")) {
-              this.error("Expected ']' in new array expression");
-            }
-            this.nextToken(); // ']' 消費
-            return new NewArrayNode(newType, sizeExpr);
-          } else if (this.matchToken("LPAREN")) {
+      }
+    
+      // 識別子、関数呼び出し、配列アクセス
+      if (tok.type === "IDENTIFIER") {
+        this.nextToken();
+        let expr = new IdentifierNode(tok.value);
+        while (true) {
+          if (this.matchToken("LPAREN")) {
             this.nextToken(); // '(' 消費
             const args = [];
             while (!this.matchToken("RPAREN")) {
@@ -565,50 +584,31 @@ class ImportNode {
               if (this.matchToken("COMMA")) this.nextToken();
             }
             this.nextToken(); // ')' 消費
-            return new NewObjectNode(newType, args);
-          } else {
-            this.error("Invalid syntax after 'new'");
-          }
-        }
-      
-        // 識別子、関数呼び出し、配列アクセス
-        if (tok.type === "IDENTIFIER") {
-          this.nextToken();
-          let expr = new IdentifierNode(tok.value);
-          while (true) {
-            if (this.matchToken("LPAREN")) {
-              this.nextToken(); // '(' 消費
-              const args = [];
-              while (!this.matchToken("RPAREN")) {
-                args.push(this.parseExpression());
-                if (this.matchToken("COMMA")) this.nextToken();
-              }
-              this.nextToken(); // ')' 消費
-              expr = new FunctionCallNode(expr, args);
-            } else if (this.matchToken("LBRACKET")) {
-              this.nextToken(); // '[' 消費
-              const indexExpr = this.parseExpression();
-              if (!this.matchToken("RBRACKET")) {
-                this.error("Expected ']' for array access");
-              }
-              this.nextToken(); // ']' 消費
-              expr = new ArrayAccessNode(expr, indexExpr);
-            } else {
-              break;
+            expr = new FunctionCallNode(expr, args);
+          } else if (this.matchToken("LBRACKET")) {
+            this.nextToken(); // '[' 消費
+            const indexExpr = this.parseExpression();
+            if (!this.matchToken("RBRACKET")) {
+              this.error("Expected ']' for array access");
             }
+            this.nextToken(); // ']' 消費
+            expr = new ArrayAccessNode(expr, indexExpr);
+          } else {
+            break;
           }
-          return expr;
         }
-      
-        this.error("Unexpected token in expression: " + tok.type + ", " + tok.value);
+        return expr;
       }
-      
-      
-  }
-  
-  // --------------------------------------------------
-  // エクスポート
-  // --------------------------------------------------
+    
+      this.error("Unexpected token in expression: " + tok.type + ", " + tok.value);
+    }
+    
+    
+}
+
+// --------------------------------------------------
+// エクスポート
+// --------------------------------------------------
 
 
 window.Parser = Parser;

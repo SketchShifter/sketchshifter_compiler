@@ -7,6 +7,7 @@
     canvas { border: 1px solid black; margin-top: 10px; }
     textarea { width: 100%; height: 150px; }
     #output { width: 100%; height: 300px; margin-top: 10px; font-family: monospace; }
+    #debugOutput { width: 100%; height: 300px; margin-top: 10px; font-family: monospace; background-color: #f0f0f0; color: #333; }
   </style>
 </head>
 <body>
@@ -14,9 +15,15 @@
   <textarea id="pdeCode"></textarea>
   <br>
   <button id="compileBtn">コンパイル＆実行</button>
+  <button id="showDebugBtn">デバッグ情報表示</button>
   <br>
   <h3>変換されたJavaScriptコード：</h3>
   <textarea id="output" readonly></textarea>
+  <br>
+  <div id="debugContainer" style="display: none;">
+    <h3>デバッグ情報：</h3>
+    <textarea id="debugOutput" readonly></textarea>
+  </div>
   <br>
   <canvas id="canvas"></canvas>
 
@@ -25,6 +32,21 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      // コンソールログをキャプチャ
+      const originalConsoleLog = console.log;
+      const originalConsoleError = console.error;
+      let logMessages = [];
+      
+      console.log = function() {
+        logMessages.push(Array.from(arguments).join(' '));
+        originalConsoleLog.apply(console, arguments);
+      };
+      
+      console.error = function() {
+        logMessages.push('ERROR: ' + Array.from(arguments).join(' '));
+        originalConsoleError.apply(console, arguments);
+      };
+      
       // samplePDE.pdeからコードを読み込み
       fetch('samplePDE.pde')
         .then(response => response.text())
@@ -41,7 +63,23 @@
       // コンパイルボタンのイベントリスナー
       document.getElementById('compileBtn').addEventListener('click', runCompiler);
       
+      // デバッグ情報表示ボタン
+      document.getElementById('showDebugBtn').addEventListener('click', function() {
+        const debugContainer = document.getElementById('debugContainer');
+        const debugOutput = document.getElementById('debugOutput');
+        
+        if (debugContainer.style.display === 'none') {
+          debugContainer.style.display = 'block';
+          debugOutput.value = logMessages.join('\n');
+        } else {
+          debugContainer.style.display = 'none';
+        }
+      });
+      
       function runCompiler() {
+        // デバッグログをクリア
+        logMessages = [];
+        
         const code = document.getElementById('pdeCode').value;
         try {
           const tokens = tokenize(code);
@@ -67,6 +105,8 @@
         } catch (e) {
           console.error("実行エラー：", e);
           alert("コンパイル/実行エラーがあります: " + e.message);
+          document.getElementById('debugOutput').value = logMessages.join('\n');
+          document.getElementById('debugContainer').style.display = 'block';
         }
       }
     });
