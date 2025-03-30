@@ -20,4 +20,15 @@ void setup() {
 void draw() {
   background(200);
   ellipse(width/2, height/2, 50, 50);
+  start();
+}
+
+void start() {
+
+  int a = 1;
+  
+  while(a < 1000){
+    a++;
+    ellipse(width, height, a, a);
+  }
 }
