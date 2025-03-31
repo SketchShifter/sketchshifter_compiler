@@ -1066,14 +1066,14 @@ function isClassField(identifier, context) {
   return context && context.classFields && context.classFields.indexOf(identifier) !== -1;
 }
 
-function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
+function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
   const INDENT = '  '.repeat(indent);
   if (!ast) return '';
 
   switch (ast.type) {
     case "Program":
       const imports = (ast.imports || []).map(im => `// import ${im.path}`).join('\n');
-      const topLevel = (ast.topLevelElements || []).map(e => generateJavaScriptFromAST(e, indent)).join('\n\n');
+      const topLevel = (ast.topLevelElements || []).map(e => generateJavaScriptFromAST(e, context, indent)).join('\n\n');
       return `${imports}\n\n${topLevel}`;
 
     case "Class":
@@ -1095,16 +1095,16 @@ function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
       // クラスメンバーの走査
       for (const member of ast.members) {
         if (member.type === "Field") {
-          const init = member.initializer ? generateJavaScriptFromAST(member.initializer, indent + 1, newContext) : "undefined";
+          const init = member.initializer ? generateJavaScriptFromAST(member.initializer, newContext, indent + 1) : "undefined";
           constructorBody += `    this.${member.fieldName} = ${init};\n`;
         } else if (member.type === "Method") {
           if (member.name === ast.name) {
             hasConstructor = true;
             constructorParams = (member.params || []).map(p => p.name).join(', ');
-            constructorBody = `    ${constructorBody}` + generateJavaScriptFromAST(member.body, indent + 1, newContext) + "\n";
+            constructorBody = `    ${constructorBody}` + generateJavaScriptFromAST(member.body, newContext, indent + 1) + "\n";
           } else {
             const params = (member.params || []).map(p => p.name).join(', ');
-            const body = generateJavaScriptFromAST(member.body, indent + 1, newContext);
+            const body = generateJavaScriptFromAST(member.body, newContext, indent + 1);
             methodStr += `  ${member.name}(${params}) {\n${body}\n  }\n`;
           }
         } else {
@@ -1123,65 +1123,65 @@ function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
     case "Field":
       // ※ グローバル変数として Field が出力されるケースがある場合、
       //     初期化子がないなら "undefined" を出力するようにする
-      const fieldInit = ast.initializer ? generateJavaScriptFromAST(ast.initializer, 0) : "undefined";
+      const fieldInit = ast.initializer ? generateJavaScriptFromAST(ast.initializer, context, 0) : "undefined";
       return `${INDENT}let ${ast.fieldName} = ${fieldInit};`;
 
     case "Method":
       // グローバルな関数の場合（クラス外）
       const params = (ast.params || []).map(p => p.name).join(', ');
-      const body = generateJavaScriptFromAST(ast.body, indent + 1);
+      const body = generateJavaScriptFromAST(ast.body, context, indent + 1);
       return `${INDENT}function ${ast.name}(${params}) {\n${body}\n${INDENT}}`;
 
     case "GlobalFunction":
       const gParams = (ast.params || []).map(p => p.name).join(', ');
-      const gBody = generateJavaScriptFromAST(ast.body, indent + 1);
+      const gBody = generateJavaScriptFromAST(ast.body, context, indent + 1);
       return `${INDENT}function ${ast.name}(${gParams}) {\n${gBody}\n${INDENT}}`;
 
     case "VariableDeclaration":
-      let varValue = ast.initializer ? generateJavaScriptFromAST(ast.initializer, 0) : 'undefined';
+      let varValue = ast.initializer ? generateJavaScriptFromAST(ast.initializer, context, 0) : 'undefined';
       return `${INDENT}let ${ast.varName} = ${varValue};`;
 
     case "Block":
-      return (ast.statements || []).map(stmt => generateJavaScriptFromAST(stmt, indent)).join('\n');
+      return (ast.statements || []).map(stmt => generateJavaScriptFromAST(stmt, context, indent)).join('\n');
 
     case "ExpressionStatement":
-      return `${INDENT}${generateJavaScriptFromAST(ast.expression)};`;
+      return `${INDENT}${generateJavaScriptFromAST(ast.expression, context)};`;
 
     case "IfStatement":
-      let cond = generateJavaScriptFromAST(ast.condition);
+      let cond = generateJavaScriptFromAST(ast.condition, context);
       if (ast.condition.type === "BinaryOp" &&
           (ast.condition.left.type === "BinaryOp" || ast.condition.right.type === "BinaryOp")) {
         if (!(ast.condition.operator === "&&" || ast.condition.operator === "||")) {
           cond = `(${cond})`;
         }
       }
-      const thenBlock = generateJavaScriptFromAST(ast.thenBlock, indent + 1);
+      const thenBlock = generateJavaScriptFromAST(ast.thenBlock, context, indent + 1);
       const elseBlock = ast.elseBlock
-        ? ` else {\n${generateJavaScriptFromAST(ast.elseBlock, indent + 1)}\n${INDENT}}`
+        ? ` else {\n${generateJavaScriptFromAST(ast.elseBlock, context, indent + 1)}\n${INDENT}}`
         : '';
       return `${INDENT}if (${cond}) {\n${thenBlock}\n${INDENT}}${elseBlock}`;
 
     case "WhileStatement":
-      const whileCond = generateJavaScriptFromAST(ast.condition);
-      const whileBody = generateJavaScriptFromAST(ast.body, indent + 1);
+      const whileCond = generateJavaScriptFromAST(ast.condition, context);
+      const whileBody = generateJavaScriptFromAST(ast.body, context, indent + 1);
       return `${INDENT}while (${whileCond}) {\n${whileBody}\n${INDENT}}`;
 
     case "ForStatement":
-      const init = generateJavaScriptFromAST(ast.init);
-      const condition = generateJavaScriptFromAST(ast.condition);
-      const update = generateJavaScriptFromAST(ast.update);
-      const forBody = generateJavaScriptFromAST(ast.body, indent + 1);
+      const init = generateJavaScriptFromAST(ast.init, context);
+      const condition = generateJavaScriptFromAST(ast.condition, context);
+      const update = generateJavaScriptFromAST(ast.update, context);
+      const forBody = generateJavaScriptFromAST(ast.body, context, indent + 1);
       return `${INDENT}for (${init} ${condition}; ${update}) {\n${forBody}\n${INDENT}}`;
 
     case "ForEachStatement":
       // ここでは ES6 の for...of ループに変換する例
       const varName = ast.variableDeclaration.varName;
-      const iterable = generateJavaScriptFromAST(ast.iterable);
-      const forEachBody = generateJavaScriptFromAST(ast.body, indent + 1);
+      const iterable = generateJavaScriptFromAST(ast.iterable, context);
+      const forEachBody = generateJavaScriptFromAST(ast.body, context, indent + 1);
       return `${INDENT}for (let ${varName} of ${iterable}) {\n${forEachBody}\n${INDENT}}`;
 
     case "ReturnStatement":
-      const ret = ast.expression ? generateJavaScriptFromAST(ast.expression) : '';
+      const ret = ast.expression ? generateJavaScriptFromAST(ast.expression, context) : '';
       return `${INDENT}return ${ret};`;
 
     case "BinaryOp":
@@ -1196,8 +1196,8 @@ function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
       if (opMap[operator]) {
         operator = opMap[operator];
       }
-      let left = generateJavaScriptFromAST(ast.left);
-      let right = generateJavaScriptFromAST(ast.right);
+      let left = generateJavaScriptFromAST(ast.left, context);
+      let right = generateJavaScriptFromAST(ast.right, context);
       const precedence = {
         '*': 3, '/': 3, '%': 3,
         '+': 2, '-': 2,
@@ -1213,7 +1213,7 @@ function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
         if ((operator === "-" || operator === "+") &&
             ast.right.right.type === "Identifier" &&
             (ast.right.right.name === "paddleWidth" || ast.right.right.name === "paddleHeight")) {
-          return `(${left} ${operator} ${generateJavaScriptFromAST(ast.right.left)}) / ${generateJavaScriptFromAST(ast.right.right)}`;
+          return `(${left} ${operator} ${generateJavaScriptFromAST(ast.right.left, context)}) / ${generateJavaScriptFromAST(ast.right.right, context)}`;
         }
       }
       if (ast.right.type === "BinaryOp") {
@@ -1238,7 +1238,7 @@ function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
       return `${left} ${operator} ${right}`;
 
     case "UnaryOp":
-      return `${ast.operator}${generateJavaScriptFromAST(ast.expr)}`;
+      return `${ast.operator}${generateJavaScriptFromAST(ast.expr, context)}`;
 
     case "Literal":
       if (ast.literalType === 'string') {
@@ -1264,36 +1264,36 @@ function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
     case "FunctionCall":
       if (ast.callee.type === "Identifier" && ast.callee.name === "random") {
         if (ast.args.length === 2) {
-          const min = generateJavaScriptFromAST(ast.args[0]);
-          const max = generateJavaScriptFromAST(ast.args[1]);
+          const min = generateJavaScriptFromAST(ast.args[0], context);
+          const max = generateJavaScriptFromAST(ast.args[1], context);
           return `${min} + ((mouseX % 100) / 100.0) * (${max} - ${min})`;
         }
       }
       if (ast.callee.type === "Identifier" && ast.callee.name === "super") {
-        return `super(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg)).join(', ')})`;
+        return `super(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg, context)).join(', ')})`;
       }
-      return `${generateJavaScriptFromAST(ast.callee)}(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg)).join(', ')})`;
+      return `${generateJavaScriptFromAST(ast.callee, context)}(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg, context)).join(', ')})`;
 
     case "ArrayAccess":
-      return `${generateJavaScriptFromAST(ast.arrayExpr)}[${generateJavaScriptFromAST(ast.indexExpr)}]`;
+      return `${generateJavaScriptFromAST(ast.arrayExpr, context)}[${generateJavaScriptFromAST(ast.indexExpr, context)}]`;
 
     case "NewArray":
-      const arrSize = generateJavaScriptFromAST(ast.sizeExpr);
+      const arrSize = generateJavaScriptFromAST(ast.sizeExpr, context);
       return `new Array(${arrSize}).fill(0)`;
 
     case "NewObject":
-      return `new ${ast.className}(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg)).join(', ')})`;
+      return `new ${ast.className}(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg, context)).join(', ')})`;
 
     case "Cast":
-      const castExpr = generateJavaScriptFromAST(ast.expr);
+      const castExpr = generateJavaScriptFromAST(ast.expr, context);
       if (ast.castType === "int") return `Math.floor(${castExpr})`;
       else return `${castExpr} /* cast to ${ast.castType} */`;
 
     case "MemberAccess":
       if (ast.object.type === "Identifier" && ast.object.name === "super") {
-        return `super.${generateJavaScriptFromAST(ast.property)}`;
+        return `super.${generateJavaScriptFromAST(ast.property, context)}`;
       }
-      return `${generateJavaScriptFromAST(ast.object)}.${generateJavaScriptFromAST(ast.property)}`;
+      return `${generateJavaScriptFromAST(ast.object, context)}.${generateJavaScriptFromAST(ast.property, context)}`;
 
     default:
       return `${INDENT}// Unhandled AST node: ${ast.type}`;
