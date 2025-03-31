@@ -8,11 +8,87 @@ let strokeColor = 'black';
 let useStroke = true;
 let useFill = true;
 
+// マウス関連のグローバル変数
+let mouseX = 0;
+let mouseY = 0;
+let pmouseX = 0;
+let pmouseY = 0;
+let mouseIsPressed = false;
+let mouseButton = 0; // 0: LEFT, 1: RIGHT, 2: CENTER
+
+// キーボード関連のグローバル変数
+let keyIsPressed = false;
+let key = '';
+let keyCode = 0;
+
+// テキスト関連
+let textFont = "Arial";
+let textSize_val = 12;
+
 function size(w, h) {
   const canvas = document.getElementById("canvas");
   canvas.width = width = w;
   canvas.height = height = h;
   ctx = canvas.getContext("2d");
+    
+  // マウスイベントのセットアップ
+  canvas.addEventListener('mousemove', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    pmouseX = mouseX;
+    pmouseY = mouseY;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+    
+    // mouseMoved関数が定義されていれば呼び出し
+    if (typeof mouseMoved === 'function' && !mouseIsPressed) {
+      mouseMoved();
+    }
+    
+    // mouseDragged関数が定義されていれば呼び出し
+    if (typeof mouseDragged === 'function' && mouseIsPressed) {
+      mouseDragged();
+    }
+  });
+  
+  canvas.addEventListener('mousedown', function(e) {
+    mouseIsPressed = true;
+    mouseButton = e.button; // 0: 左, 1: 中, 2: 右
+    
+    // mousePressed関数が定義されていれば呼び出し
+    if (typeof mousePressed === 'function') {
+      mousePressed();
+    }
+  });
+  
+  canvas.addEventListener('mouseup', function() {
+    mouseIsPressed = false;
+    
+    // mouseReleased関数が定義されていれば呼び出し
+    if (typeof mouseReleased === 'function') {
+      mouseReleased();
+    }
+  });
+  
+  // キーボードイベントのセットアップ
+  document.addEventListener('keydown', function(e) {
+    keyIsPressed = true;
+    key = e.key;
+    keyCode = e.keyCode;
+    
+    // keyPressed関数が定義されていれば呼び出し
+    if (typeof keyPressed === 'function') {
+      keyPressed();
+    }
+  });
+  
+  document.addEventListener('keyup', function() {
+    keyIsPressed = false;
+    
+    // keyReleased関数が定義されていれば呼び出し
+    if (typeof keyReleased === 'function') {
+      keyReleased();
+    }
+  });
 }
 
 function background(r, g = r, b = r) {
@@ -71,6 +147,68 @@ function noFill() {
 function noStroke() {
   useStroke = false;
 }
+
+
+// テキスト関連機能
+function text(str, x, y) {
+  if (ctx) {
+    ctx.fillStyle = fillColor;
+    ctx.font = \`\${textSize_val}px \${textFont}\`;
+    ctx.fillText(str, x, y);
+  }
+}
+
+function textSize(size) {
+  textSize_val = size;
+}
+
+// 数学関連の便利関数
+function random(min, max = null) {
+  if (max === null) {
+    max = min;
+    min = 0;
+  }
+  return min + (max - min) * Math.random();
+}
+
+function dist(x1, y1, x2, y2) {
+  return Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
+}
+
+function min(a, b) {
+  return (a < b) ? a : b;
+}
+
+function max(a, b) {
+  return (a > b) ? a : b;
+}
+
+function map(value, start1, stop1, start2, stop2) {
+  return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+}
+
+function constrain(value, min, max) {
+  return value < min ? min : (value > max ? max : value);
+}
+
+// マウス関連の定数
+const LEFT = 0;
+const CENTER = 1;
+const RIGHT = 2;
+
+// キーボード関連の定数
+const BACKSPACE = 8;
+const TAB = 9;
+const ENTER = 13;
+const RETURN = 13;
+const SHIFT = 16;
+const CTRL = 17;
+const ALT = 18;
+const ESCAPE = 27;
+const UP = 38;
+const DOWN = 40;
+const LEFT_ARROW = 37;
+const RIGHT_ARROW = 39;
 `;
 
 const processingAPI2 = `
