@@ -426,29 +426,30 @@ class Parser {
   }
 
   parseClassDeclaration() {
-    this.nextToken(); // consume "class"
+    this.nextToken(); // "class" を消費
     if (!this.matchToken("IDENTIFIER")) this.error("Class name expected");
     const className = this.currentToken().value;
     this.nextToken();
-
-    // 継承元クラスのチェック
+  
+    // 継承がある場合の処理
     let baseClass = null;
     if (this.matchToken("KEYWORD", "extends")) {
-      this.nextToken(); // consume "extends"
-      if (!this.matchToken("IDENTIFIER")) this.error("Base class name expected after extends");
+      this.nextToken(); // "extends" 消費
+      if (!this.matchToken("IDENTIFIER")) this.error("Base class name expected");
       baseClass = this.currentToken().value;
       this.nextToken();
     }
-
+  
     if (!this.matchToken("LBRACE")) this.error("Expected { after class name");
-    this.nextToken(); // consume "{"
-
+    this.nextToken(); // "{" 消費
+  
     const members = [];
     while (!this.matchToken("RBRACE")) {
       if (!this.currentToken()) this.error("Unexpected EOF in class body");
-      members.push(this.parseClassMember());
+      members.push(this.parseClassMember(className)); // クラス名を渡す
     }
-    this.nextToken(); // consume "}"
+    this.nextToken(); // "}" 消費
+  
     return new ClassNode(className, members, baseClass);
   }
 
@@ -469,27 +470,51 @@ class Parser {
     }
   }            
 
-    parseClassMember() {
-      if (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void")) {
-        // 型のパースをヘルパー関数で行う
-        const typeStr = this.parseType(); 
-        if (!this.matchToken("IDENTIFIER")) this.error("Member name expected");
-        const name = this.nextToken().value;
-        if (this.matchToken("LPAREN")) {
-          return this.parseMethodDeclaration(typeStr, name);
-        } else {
-          let initializer = null;
-          if (this.matchToken("ASSIGN")) {
-            this.nextToken();
-            initializer = this.parseExpression();
-          }  
-          if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
-          this.nextToken();
-          return new FieldNode(typeStr, name, initializer);
-        }
+  // クラスメンバーのパース（修正例）
+parseClassMember(currentClassName) {
+  // コンストラクタ判定：次のトークンが識別子かつその値がクラス名と同じなら
+  if (this.matchToken("IDENTIFIER") && this.currentToken().value === currentClassName) {
+    // これはコンストラクタ
+    const constructorName = this.nextToken().value; // ここは currentClassName と同じはず
+    if (!this.matchToken("LPAREN")) this.error("Expected ( after constructor name");
+    this.nextToken(); // "(" 消費
+    const params = [];
+    // 引数リストの解析（例としてカンマ区切りのパラメータを解析）
+    while (!this.matchToken("RPAREN")) {
+      const paramType = this.parseType();
+      if (!this.matchToken("IDENTIFIER")) this.error("Parameter name expected");
+      const paramName = this.nextToken().value;
+      params.push({ type: paramType, name: paramName });
+      if (this.matchToken("COMMA")) {
+        this.nextToken(); // カンマ消費
       }
-      this.error("Invalid class member");
-    }      
+    }
+    this.nextToken(); // ")" 消費
+    const body = this.parseBlock();
+    // コンストラクタは AST 上で "constructor" として扱う
+    return new MethodNode("constructor", constructorName, params, body);
+  }
+  // 通常のフィールドまたはメソッドの処理
+  else if (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void")) {
+    const typeStr = this.parseType();
+    if (!this.matchToken("IDENTIFIER")) this.error("Member name expected");
+    const name = this.nextToken().value;
+    if (this.matchToken("LPAREN")) {
+      return this.parseMethodDeclaration(typeStr, name);
+    } else {
+      let initializer = null;
+      if (this.matchToken("ASSIGN")) {
+        this.nextToken();
+        initializer = this.parseExpression();
+      }
+      if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
+      this.nextToken(); // ";" 消費
+      return new FieldNode(typeStr, name, initializer);
+    }
+  }
+  this.error("Invalid class member");
+}
+       
 
   parseMethodDeclaration(returnType, name) {
     // メソッド宣言: 引数リストとブロック
@@ -1035,7 +1060,13 @@ class Parser {
 // --------------------------------------------------
 // コード生成
 // --------------------------------------------------
-function generateJavaScriptFromAST(ast, indent = 0) {
+// クラスフィールドかどうかを判定する関数
+function isClassField(identifier, context) {
+  console.log(`isClassField: ${identifier}, ${context.classFields}`);
+  return context && context.classFields && context.classFields.indexOf(identifier) !== -1;
+}
+
+function generateJavaScriptFromAST(ast, indent = 0, context = {}) {
   const INDENT = '  '.repeat(indent);
   if (!ast) return '';
 
@@ -1045,48 +1076,49 @@ function generateJavaScriptFromAST(ast, indent = 0) {
       const topLevel = (ast.topLevelElements || []).map(e => generateJavaScriptFromAST(e, indent)).join('\n\n');
       return `${imports}\n\n${topLevel}`;
 
-      case "Class":
-  // 継承がある場合は extends 節を出力
-  const extendsClause = ast.baseClass ? ` extends ${ast.baseClass}` : '';
-  let constructorBody = "";
-  let methodStr = "";
-  let hasConstructor = false;
-  let constructorParams = "";
-  
-  // クラスメンバーの走査
-  for (const member of ast.members) {
-    if (member.type === "Field") {
-      // Field ノードは、コンストラクタ内で this.field = initializer; として初期化
-      const init = member.initializer ? generateJavaScriptFromAST(member.initializer, indent + 1) : "undefined";
-      constructorBody += `    this.${member.fieldName} = ${init};\n`;
-    } else if (member.type === "Method") {
-      // メソッド名がクラス名と同じなら、コンストラクタとして扱う
-      if (member.name === ast.name) {
-        hasConstructor = true;
-        constructorParams = (member.params || []).map(p => p.name).join(', ');
-        // そのメソッドの body をコンストラクタの中身として出力
-        // ※フィールドの初期化が先頭にある場合は、それと連結する
-        constructorBody = `    ${constructorBody}` + generateJavaScriptFromAST(member.body, indent + 1) + "\n";
-      } else {
-        // クラスメソッドとして出力（this. は不要）
-        const params = (member.params || []).map(p => p.name).join(', ');
-        const body = generateJavaScriptFromAST(member.body, indent + 1);
-        methodStr += `  ${member.name}(${params}) {\n${body}\n  }\n`;
+    case "Class":
+      // クラスの場合、まずフィールドの名前を集める
+      const classFields = [];
+      for (const member of ast.members) {
+        if (member.type === "Field") {
+          classFields.push(member.fieldName);
+        }
       }
-    } else {
-      methodStr += `  // Unhandled class member: ${member.type}\n`;
-    }
-  }
-  
-  // コンストラクタが存在しない場合、空のコンストラクタを生成（フィールド初期化があればその分は出力済み）
-  if (!hasConstructor) {
-    constructorBody = constructorBody || "    // no field initializations\n";
-    constructorParams = "";
-  }
-  const constructorStr = `  constructor(${constructorParams}) {\n${constructorBody}  }\n`;
-  
-  return `${INDENT}class ${ast.name}${extendsClause} {\n${constructorStr}${methodStr}${INDENT}}`;
-
+      // クラス内では新たなコンテキストとして classFields を渡すs
+      const newContext = Object.assign({}, context, { classFields });
+      const extendsClause = ast.baseClass ? ` extends ${ast.baseClass}` : '';
+      let constructorBody = "";
+      let methodStr = "";
+      let hasConstructor = false;
+      let constructorParams = "";
+      
+      // クラスメンバーの走査
+      for (const member of ast.members) {
+        if (member.type === "Field") {
+          const init = member.initializer ? generateJavaScriptFromAST(member.initializer, indent + 1, newContext) : "undefined";
+          constructorBody += `    this.${member.fieldName} = ${init};\n`;
+        } else if (member.type === "Method") {
+          if (member.name === ast.name) {
+            hasConstructor = true;
+            constructorParams = (member.params || []).map(p => p.name).join(', ');
+            constructorBody = `    ${constructorBody}` + generateJavaScriptFromAST(member.body, indent + 1, newContext) + "\n";
+          } else {
+            const params = (member.params || []).map(p => p.name).join(', ');
+            const body = generateJavaScriptFromAST(member.body, indent + 1, newContext);
+            methodStr += `  ${member.name}(${params}) {\n${body}\n  }\n`;
+          }
+        } else {
+          methodStr += `  // Unhandled class member: ${member.type}\n`;
+        }
+      }
+      
+      if (!hasConstructor) {
+        constructorBody = constructorBody || "    // no field initializations\n";
+        constructorParams = "";
+      }
+      const constructorStr = `  constructor(${constructorParams}) {\n${constructorBody}  }\n`;
+      
+      return `${INDENT}class ${ast.name}${extendsClause} {\n${constructorStr}${methodStr}${INDENT}}`;
       
     case "Field":
       // ※ グローバル変数として Field が出力されるケースがある場合、
@@ -1222,7 +1254,12 @@ function generateJavaScriptFromAST(ast, indent = 0) {
       }
 
     case "Identifier":
-      return ast.name;
+      // もし現在のコンテキストで、この識別子がクラスのフィールドであれば
+      if (isClassField(ast.name, context)) {
+        return `this.${ast.name}`;
+      } else {
+        return ast.name;
+      }
 
     case "FunctionCall":
       if (ast.callee.type === "Identifier" && ast.callee.name === "random") {
