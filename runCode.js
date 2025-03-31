@@ -8,11 +8,87 @@ let strokeColor = 'black';
 let useStroke = true;
 let useFill = true;
 
+// マウス関連のグローバル変数
+let mouseX = 0;
+let mouseY = 0;
+let pmouseX = 0;
+let pmouseY = 0;
+let mouseIsPressed = false;
+let mouseButton = 0; // 0: LEFT, 1: RIGHT, 2: CENTER
+
+// キーボード関連のグローバル変数
+let keyIsPressed = false;
+let key = '';
+let keyCode = 0;
+
+// テキスト関連
+let textFont = "Arial";
+let textSize_val = 12;
+
 function size(w, h) {
   const canvas = document.getElementById("canvas");
   canvas.width = width = w;
   canvas.height = height = h;
   ctx = canvas.getContext("2d");
+    
+  // マウスイベントのセットアップ
+  canvas.addEventListener('mousemove', function(e) {
+    const rect = canvas.getBoundingClientRect();
+    pmouseX = mouseX;
+    pmouseY = mouseY;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+    
+    // mouseMoved関数が定義されていれば呼び出し
+    if (typeof mouseMoved === 'function' && !mouseIsPressed) {
+      mouseMoved();
+    }
+    
+    // mouseDragged関数が定義されていれば呼び出し
+    if (typeof mouseDragged === 'function' && mouseIsPressed) {
+      mouseDragged();
+    }
+  });
+  
+  canvas.addEventListener('mousedown', function(e) {
+    mouseIsPressed = true;
+    mouseButton = e.button; // 0: 左, 1: 中, 2: 右
+    
+    // mousePressed関数が定義されていれば呼び出し
+    if (typeof mousePressed === 'function') {
+      mousePressed();
+    }
+  });
+  
+  canvas.addEventListener('mouseup', function() {
+    mouseIsPressed = false;
+    
+    // mouseReleased関数が定義されていれば呼び出し
+    if (typeof mouseReleased === 'function') {
+      mouseReleased();
+    }
+  });
+  
+  // キーボードイベントのセットアップ
+  document.addEventListener('keydown', function(e) {
+    keyIsPressed = true;
+    key = e.key;
+    keyCode = e.keyCode;
+    
+    // keyPressed関数が定義されていれば呼び出し
+    if (typeof keyPressed === 'function') {
+      keyPressed();
+    }
+  });
+  
+  document.addEventListener('keyup', function() {
+    keyIsPressed = false;
+    
+    // keyReleased関数が定義されていれば呼び出し
+    if (typeof keyReleased === 'function') {
+      keyReleased();
+    }
+  });
 }
 
 function background(r, g = r, b = r) {
@@ -71,6 +147,68 @@ function noFill() {
 function noStroke() {
   useStroke = false;
 }
+
+
+// テキスト関連機能
+function text(str, x, y) {
+  if (ctx) {
+    ctx.fillStyle = fillColor;
+    ctx.font = \`\${textSize_val}px \${textFont}\`;
+    ctx.fillText(str, x, y);
+  }
+}
+
+function textSize(size) {
+  textSize_val = size;
+}
+
+// 数学関連の便利関数
+function random(min, max = null) {
+  if (max === null) {
+    max = min;
+    min = 0;
+  }
+  return min + (max - min) * Math.random();
+}
+
+function dist(x1, y1, x2, y2) {
+  return Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
+}
+
+function min(a, b) {
+  return (a < b) ? a : b;
+}
+
+function max(a, b) {
+  return (a > b) ? a : b;
+}
+
+function map(value, start1, stop1, start2, stop2) {
+  return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+}
+
+function constrain(value, min, max) {
+  return value < min ? min : (value > max ? max : value);
+}
+
+// マウス関連の定数
+const LEFT = 0;
+const CENTER = 1;
+const RIGHT = 2;
+
+// キーボード関連の定数
+const BACKSPACE = 8;
+const TAB = 9;
+const ENTER = 13;
+const RETURN = 13;
+const SHIFT = 16;
+const CTRL = 17;
+const ALT = 18;
+const ESCAPE = 27;
+const UP = 38;
+const DOWN = 40;
+const LEFT_ARROW = 37;
+const RIGHT_ARROW = 39;
 `;
 
 const processingAPI2 = `
@@ -1073,7 +1211,9 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
   switch (ast.type) {
     case "Program":
       const imports = (ast.imports || []).map(im => `// import ${im.path}`).join('\n');
-      const topLevel = (ast.topLevelElements || []).map(e => generateJavaScriptFromAST(e, context, indent)).join('\n\n');
+      const topLevel = (ast.topLevelElements || [])
+        .map(e => generateJavaScriptFromAST(e, context, indent))
+        .join('\n\n');
       return `${imports}\n\n${topLevel}`;
 
     case "Class":
@@ -1084,7 +1224,7 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
           classFields.push(member.fieldName);
         }
       }
-      // クラス内では新たなコンテキストとして classFields を渡すs
+      // クラス内では新たなコンテキストとして classFields を渡す
       const newContext = Object.assign({}, context, { classFields });
       const extendsClause = ast.baseClass ? ` extends ${ast.baseClass}` : '';
       let constructorBody = "";
@@ -1095,13 +1235,20 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       // クラスメンバーの走査
       for (const member of ast.members) {
         if (member.type === "Field") {
-          const init = member.initializer ? generateJavaScriptFromAST(member.initializer, newContext, indent + 1) : "undefined";
+          const init = member.initializer 
+            ? generateJavaScriptFromAST(member.initializer, newContext, indent + 1) 
+            : "undefined";
           constructorBody += `    this.${member.fieldName} = ${init};\n`;
         } else if (member.type === "Method") {
           if (member.name === ast.name) {
+            // コンストラクタの場合：識別子のthis変換を抑制するためフラグを付与
             hasConstructor = true;
             constructorParams = (member.params || []).map(p => p.name).join(', ');
-            constructorBody = `    ${constructorBody}` + generateJavaScriptFromAST(member.body, newContext, indent + 1) + "\n";
+            constructorBody += generateJavaScriptFromAST(
+              member.body, 
+              Object.assign({}, newContext, { disableFieldPrefix: true }),
+              indent + 1
+            ) + "\n";
           } else {
             const params = (member.params || []).map(p => p.name).join(', ');
             const body = generateJavaScriptFromAST(member.body, newContext, indent + 1);
@@ -1123,7 +1270,9 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
     case "Field":
       // ※ グローバル変数として Field が出力されるケースがある場合、
       //     初期化子がないなら "undefined" を出力するようにする
-      const fieldInit = ast.initializer ? generateJavaScriptFromAST(ast.initializer, context, 0) : "undefined";
+      const fieldInit = ast.initializer 
+        ? generateJavaScriptFromAST(ast.initializer, context, 0) 
+        : "undefined";
       return `${INDENT}let ${ast.fieldName} = ${fieldInit};`;
 
     case "Method":
@@ -1138,11 +1287,15 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       return `${INDENT}function ${ast.name}(${gParams}) {\n${gBody}\n${INDENT}}`;
 
     case "VariableDeclaration":
-      let varValue = ast.initializer ? generateJavaScriptFromAST(ast.initializer, context, 0) : 'undefined';
+      let varValue = ast.initializer 
+        ? generateJavaScriptFromAST(ast.initializer, context, 0) 
+        : 'undefined';
       return `${INDENT}let ${ast.varName} = ${varValue};`;
 
     case "Block":
-      return (ast.statements || []).map(stmt => generateJavaScriptFromAST(stmt, context, indent)).join('\n');
+      return (ast.statements || [])
+        .map(stmt => generateJavaScriptFromAST(stmt, context, indent))
+        .join('\n');
 
     case "ExpressionStatement":
       return `${INDENT}${generateJavaScriptFromAST(ast.expression, context)};`;
@@ -1181,7 +1334,9 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       return `${INDENT}for (let ${varName} of ${iterable}) {\n${forEachBody}\n${INDENT}}`;
 
     case "ReturnStatement":
-      const ret = ast.expression ? generateJavaScriptFromAST(ast.expression, context) : '';
+      const ret = ast.expression 
+        ? generateJavaScriptFromAST(ast.expression, context) 
+        : '';
       return `${INDENT}return ${ret};`;
 
     case "BinaryOp":
@@ -1254,8 +1409,8 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       }
 
     case "Identifier":
-      // もし現在のコンテキストで、この識別子がクラスのフィールドであれば
-      if (isClassField(ast.name, context)) {
+      // disableFieldPrefix フラグが有効な場合はthis付与を行わない
+      if (!context.disableFieldPrefix && isClassField(ast.name, context)) {
         return `this.${ast.name}`;
       } else {
         return ast.name;
@@ -1270,9 +1425,13 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
         }
       }
       if (ast.callee.type === "Identifier" && ast.callee.name === "super") {
-        return `super(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg, context)).join(', ')})`;
+        return `super(${(ast.args || [])
+          .map(arg => generateJavaScriptFromAST(arg, context))
+          .join(', ')})`;
       }
-      return `${generateJavaScriptFromAST(ast.callee, context)}(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg, context)).join(', ')})`;
+      return `${generateJavaScriptFromAST(ast.callee, context)}(${(ast.args || [])
+        .map(arg => generateJavaScriptFromAST(arg, context))
+        .join(', ')})`;
 
     case "ArrayAccess":
       return `${generateJavaScriptFromAST(ast.arrayExpr, context)}[${generateJavaScriptFromAST(ast.indexExpr, context)}]`;
@@ -1282,7 +1441,9 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       return `new Array(${arrSize}).fill(0)`;
 
     case "NewObject":
-      return `new ${ast.className}(${(ast.args || []).map(arg => generateJavaScriptFromAST(arg, context)).join(', ')})`;
+      return `new ${ast.className}(${(ast.args || [])
+        .map(arg => generateJavaScriptFromAST(arg, context))
+        .join(', ')})`;
 
     case "Cast":
       const castExpr = generateJavaScriptFromAST(ast.expr, context);
@@ -1299,6 +1460,7 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       return `${INDENT}// Unhandled AST node: ${ast.type}`;
   }
 }
+
 
 
 // window.generateJavaScriptFromAST = generateJavaScriptFromAST;
