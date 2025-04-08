@@ -1409,12 +1409,7 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       }
 
     case "Identifier":
-      // disableFieldPrefix フラグが有効な場合はthis付与を行わない
-      if (!context.disableFieldPrefix && isClassField(ast.name, context)) {
-        return `this.${ast.name}`;
-      } else {
-        return ast.name;
-      }
+      return isClassField(ast.name, context) ? `this.${ast.name}` : ast.name;
 
     case "FunctionCall":
       if (ast.callee.type === "Identifier" && ast.callee.name === "random") {
