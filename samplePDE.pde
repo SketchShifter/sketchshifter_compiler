@@ -1,7 +1,6 @@
 // 円（フォロワー）の動きを管理するクラス
 class Follower {
-  float x;
-  float y;       // 現在の位置
+  float x,y;         // フォロワーの位置
   float easing;     // イージング（緩やかな追従）係数
   float diameter;   // 円の直径
 
@@ -33,6 +32,7 @@ int numFollowers = 10;
 Follower[] followers = new Follower[numFollowers];
 
 void setup() {
+  int w, h, ssss;
   size(400, 400);
   background(255);
   // 配列内の各フォロワーを初期化

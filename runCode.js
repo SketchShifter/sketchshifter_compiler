@@ -583,8 +583,12 @@ class Parser {
   
     const members = [];
     while (!this.matchToken("RBRACE")) {
-      if (!this.currentToken()) this.error("Unexpected EOF in class body");
-      members.push(this.parseClassMember(className)); // クラス名を渡す
+      const nodeOrArray = this.parseClassMember(className);
+      if (Array.isArray(nodeOrArray)) {
+        members.push(...nodeOrArray);
+      } else {
+        members.push(nodeOrArray);
+      }
     }
     this.nextToken(); // "}" 消費
   
@@ -640,14 +644,29 @@ parseClassMember(currentClassName) {
     if (this.matchToken("LPAREN")) {
       return this.parseMethodDeclaration(typeStr, name);
     } else {
-      let initializer = null;
-      if (this.matchToken("ASSIGN")) {
-        this.nextToken();
-        initializer = this.parseExpression();
-      }
+
+      const fieldNodes = [];
+      do {
+        fieldNodes.push(
+          new FieldNode(typeStr, name,
+            this.matchToken("ASSIGN") ? (this.nextToken()  && this.parseExpression()) : null
+          ));
+
+        if (this.matchToken("COMMA")) {
+          this.nextToken(); // consume ","
+          if (!this.matchToken("IDENTIFIER")) this.error("Field name expected");
+          const nextName = this.nextToken().value;
+          fieldNodes[fieldNodes.length - 1] = new FieldNode(typeStr, nextName,
+            this.matchToken("ASSIGN") ? (this.nextToken() && this.parseExpression()) : null
+          );
+        }else {
+          break;
+        }
+      }while (true);
+
       if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
       this.nextToken(); // ";" 消費
-      return new FieldNode(typeStr, name, initializer);
+      return fieldNodes;
     }
   }
   this.error("Invalid class member");
@@ -823,16 +842,29 @@ parseClassMember(currentClassName) {
 
   parseLocalVariableDeclaration() {
     const type = this.parseType();  // TYPE と IDENTIFIER 両方を受け付ける
-    if (!this.matchToken("IDENTIFIER")) this.error("Variable name expected");
-    const name = this.nextToken().value;
-    let initializer = null;
-    if (this.matchToken("ASSIGN")) {
-      this.nextToken();
-      initializer = this.parseExpression();
-    }
+    const declarations = [];
+    do {
+        if (!this.matchToken("IDENTIFIER")) this.error("Variable name expected");
+        const name = this.nextToken().value;
+        let initializer = null;
+        if (this.matchToken("ASSIGN")) {
+          this.nextToken();
+          initializer = this.parseExpression();
+        }
+        declarations.push(
+          new VariableDeclarationNode(type, name, initializer)
+        );
+
+        if (this.matchToken("COMMA")) {
+          this.nextToken(); // consume ","
+        } else {
+          break;
+        }
+    } while (true);
+
     if (!this.matchToken("SEMICOLON")) this.error("Expected ; after variable declaration");
     this.nextToken();
-    return new VariableDeclarationNode(type, name, initializer);
+    return declarations;
   }
 
   parseExpression() {
@@ -1207,6 +1239,13 @@ function isClassField(identifier, context) {
 function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
   const INDENT = '  '.repeat(indent);
   if (!ast) return '';
+
+  if(Array.isArray(ast)) {
+    return ast
+      .map(node => generateJavaScriptFromAST(node, context, indent))
+      .filter(Boolean)
+      .join('\n');
+  }
 
   switch (ast.type) {
     case "Program":
