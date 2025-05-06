@@ -7,6 +7,7 @@ let fillColor = 'black';
 let strokeColor = 'black';
 let useStroke = true;
 let useFill = true;
+let loopId;
 
 // マウス関連のグローバル変数
 let mouseX = 0;
@@ -24,6 +25,51 @@ let keyCode = 0;
 // テキスト関連
 let textFont = "Arial";
 let textSize_val = 12;
+
+// ループ制限
+function noLoop() {
+  if (loopId != null) {
+    clearInterval(loopId);
+    loopId = null;
+  }
+}
+
+// radiansの実装
+function radians(deg) {
+  return deg * Math.PI / 180;
+}
+
+// 変形・座標系操作スタック
+let matrixStack = [];
+function pushMatrix() {
+  matrixStack.push(ctx.getTransform());
+}
+function popMatrix() {
+  const m = matrixStack.pop();
+  if (m) ctx.setTransform(m);
+}
+// 平行移動
+function translate(tx, ty) {
+  ctx.translate(tx, ty);
+}
+// 回転（ラジアン）
+function rotate(angle) {
+  ctx.rotate(angle);
+}
+// 拡大縮小
+function scale(sx, sy = sx) {
+  ctx.scale(sx, sy);
+}
+
+// モード制御
+let rectModeVal = 'CORNER';
+let ellipseModeVal = 'CENTER';
+function rectMode(mode) {
+  rectModeVal = mode;
+}
+function ellipseMode(mode) {
+  ellipseModeVal = mode;
+}
 
 function size(w, h) {
   const canvas = document.getElementById("canvas");
@@ -97,8 +143,13 @@ function background(r, g = r, b = r) {
 }
 
 function ellipse(x, y, w, h) {
+  let _cx = x, _cy = y;
+  if (ellipseModeVal === 'CORNER') {
+    _cx = x + w/2;
+    _cy = y + h/2;
+  }
   ctx.beginPath();
-  ctx.ellipse(x, y, w / 2, h / 2, 0, 0, 2 * Math.PI);
+  ctx.ellipse(_cx, _cy, w / 2, h / 2, 0, 0, 2 * Math.PI);
   if (useFill) {
     ctx.fillStyle = fillColor;
     ctx.fill();
@@ -110,13 +161,18 @@ function ellipse(x, y, w, h) {
 }
 
 function rect(x, y, w, h) {
+  let _x = x, _y = y;
+  if (rectModeVal === 'CENTER') {
+    _x = x - w/2;
+    _y = y - h/2;
+  }
   if (useFill) {
     ctx.fillStyle = fillColor;
-    ctx.fillRect(x, y, w, h);
+    ctx.fillRect(_x, _y, w, h);
   }
   if (useStroke) {
     ctx.strokeStyle = strokeColor;
-    ctx.strokeRect(x, y, w, h);
+    ctx.strokeRect(_x, _y, w, h);
   }
 }
 
@@ -128,6 +184,59 @@ function line(x1, y1, x2, y2) {
     ctx.strokeStyle = strokeColor;
     ctx.stroke();
   }
+}
+
+function point(x, y) {
+  ctx.beginPath();
+  ctx.arc(x, y, 1, 0, 2 * Math.PI);
+  if (useFill) { ctx.fillStyle = fillColor; ctx.fill(); }
+  if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
+}
+
+// 三角形
+function triangle(x1, y1, x2, y2, x3, y3) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineTo(x3, y3);
+  ctx.closePath();
+  if (useFill) { ctx.fillStyle = fillColor; ctx.fill(); }
+  if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
+}
+
+// 四角形（quad）
+function quad(x1, y1, x2, y2, x3, y3, x4, y4) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineTo(x3, y3);
+  ctx.lineTo(x4, y4);
+  ctx.closePath();
+  if (useFill) { ctx.fillStyle = fillColor; ctx.fill(); }
+  if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
+}
+
+// 円弧
+function arc(x, y, w, h, start, stop, mode = 'OPEN') {
+  ctx.beginPath();
+  // optional chord/pie
+  if (mode === 'CHORD') {
+    ctx.moveTo(x + Math.cos(start) * w/2, y + Math.sin(start) * h/2);
+  }
+  ctx.ellipse(x, y, w/2, h/2, 0, start, stop);
+  if (mode === 'PIE') {
+    ctx.lineTo(x, y);
+  }
+  if (useFill) { ctx.fillStyle = fillColor; ctx.fill(); }
+  if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
+}
+
+// Bézier曲線
+function bezier(x1, y1, x2, y2, x3, y3, x4, y4) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.bezierCurveTo(x2, y2, x3, y3, x4, y4);
+  if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
 }
 
 function fill(r, g, b) {
@@ -212,7 +321,10 @@ const RIGHT_ARROW = 39;
 `;
 
 const processingAPI2 = `
-\nsetup();\nsetInterval(() => { if (typeof draw === 'function') draw(); }, 30);
+  setup();
+  loopId = setInterval(() => {
+    if (typeof draw === 'function') draw();
+  }, 1000 / 30);
 `;
 
 function runPDE() {
@@ -583,8 +695,12 @@ class Parser {
   
     const members = [];
     while (!this.matchToken("RBRACE")) {
-      if (!this.currentToken()) this.error("Unexpected EOF in class body");
-      members.push(this.parseClassMember(className)); // クラス名を渡す
+      const nodeOrArray = this.parseClassMember(className);
+      if (Array.isArray(nodeOrArray)) {
+        members.push(...nodeOrArray);
+      } else {
+        members.push(nodeOrArray);
+      }
     }
     this.nextToken(); // "}" 消費
   
@@ -640,14 +756,29 @@ parseClassMember(currentClassName) {
     if (this.matchToken("LPAREN")) {
       return this.parseMethodDeclaration(typeStr, name);
     } else {
-      let initializer = null;
-      if (this.matchToken("ASSIGN")) {
-        this.nextToken();
-        initializer = this.parseExpression();
-      }
+
+      const fieldNodes = [];
+      do {
+        fieldNodes.push(
+          new FieldNode(typeStr, name,
+            this.matchToken("ASSIGN") ? (this.nextToken()  && this.parseExpression()) : null
+          ));
+
+        if (this.matchToken("COMMA")) {
+          this.nextToken(); // consume ","
+          if (!this.matchToken("IDENTIFIER")) this.error("Field name expected");
+          const nextName = this.nextToken().value;
+          fieldNodes[fieldNodes.length - 1] = new FieldNode(typeStr, nextName,
+            this.matchToken("ASSIGN") ? (this.nextToken() && this.parseExpression()) : null
+          );
+        }else {
+          break;
+        }
+      }while (true);
+
       if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
       this.nextToken(); // ";" 消費
-      return new FieldNode(typeStr, name, initializer);
+      return fieldNodes;
     }
   }
   this.error("Invalid class member");
@@ -823,16 +954,29 @@ parseClassMember(currentClassName) {
 
   parseLocalVariableDeclaration() {
     const type = this.parseType();  // TYPE と IDENTIFIER 両方を受け付ける
-    if (!this.matchToken("IDENTIFIER")) this.error("Variable name expected");
-    const name = this.nextToken().value;
-    let initializer = null;
-    if (this.matchToken("ASSIGN")) {
-      this.nextToken();
-      initializer = this.parseExpression();
-    }
+    const declarations = [];
+    do {
+        if (!this.matchToken("IDENTIFIER")) this.error("Variable name expected");
+        const name = this.nextToken().value;
+        let initializer = null;
+        if (this.matchToken("ASSIGN")) {
+          this.nextToken();
+          initializer = this.parseExpression();
+        }
+        declarations.push(
+          new VariableDeclarationNode(type, name, initializer)
+        );
+
+        if (this.matchToken("COMMA")) {
+          this.nextToken(); // consume ","
+        } else {
+          break;
+        }
+    } while (true);
+
     if (!this.matchToken("SEMICOLON")) this.error("Expected ; after variable declaration");
     this.nextToken();
-    return new VariableDeclarationNode(type, name, initializer);
+    return declarations;
   }
 
   parseExpression() {
@@ -1207,6 +1351,13 @@ function isClassField(identifier, context) {
 function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
   const INDENT = '  '.repeat(indent);
   if (!ast) return '';
+
+  if(Array.isArray(ast)) {
+    return ast
+      .map(node => generateJavaScriptFromAST(node, context, indent))
+      .filter(Boolean)
+      .join('\n');
+  }
 
   switch (ast.type) {
     case "Program":
