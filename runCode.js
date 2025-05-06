@@ -26,14 +26,6 @@ let keyCode = 0;
 let textFont = "Arial";
 let textSize_val = 12;
 
-// ループ制限
-function noLoop() {
-  if (loopId != null) {
-    clearInterval(loopId);
-    loopId = null;
-  }
-}
-
 // radiansの実装
 function radians(deg) {
   return deg * Math.PI / 180;
@@ -300,6 +292,14 @@ function constrain(value, min, max) {
   return value < min ? min : (value > max ? max : value);
 }
 
+// 特殊定数
+const PI = Math.PI;
+
+// arc
+const OPEN  = 'OPEN';
+const CHORD = 'CHORD';
+const PIE   = 'PIE';
+
 // マウス関連の定数
 const LEFT = 0;
 const CENTER = 1;
@@ -325,6 +325,11 @@ const processingAPI2 = `
   loopId = setInterval(() => {
     if (typeof draw === 'function') draw();
   }, 1000 / 30);
+  function noLoop() {
+    if (loopId != null) {
+      clearInterval(loopId);
+    }
+  }
 `;
 
 function runPDE() {
