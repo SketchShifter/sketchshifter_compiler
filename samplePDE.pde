@@ -5,10 +5,8 @@ void setup() {
 
 void draw() {
     if (mousePressed) {
-        fill(0); // 黒
         noStroke();
+        fill(0); // 黒
         ellipse(mouseX, mouseY, 20, 20);
-    }else{
-        text("",0,0);
     }
 }

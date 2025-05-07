@@ -246,7 +246,7 @@ function bezier(x1, y1, x2, y2, x3, y3, x4, y4) {
   if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
 }
 
-function fill(r, g, b) {
+function fill(r, g = r, b = r) {
   fillColor = \`rgb(\${r}, \${g}, \${b})\`;
   useFill = true;
 }
