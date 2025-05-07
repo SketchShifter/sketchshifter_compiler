@@ -21,10 +21,21 @@ let mouseButton = 0; // 0: LEFT, 1: RIGHT, 2: CENTER
 let keyIsPressed = false;
 let key = '';
 let keyCode = 0;
-
 // テキスト関連
 let textFont = "Arial";
 let textSize_val = 12;
+if(typeof mousePressed === 'undefined'){
+  var mousePressed = () => {
+    return mouseIsPressed;
+  }
+  var isMousePressedUndefined = true;
+}
+if(typeof keyPressed === 'undefined') {
+  var keyPressed = () => {
+    return keyIsPressed;
+  }
+  var isKeyPressedUndefined = true;
+}
 
 // radiansの実装
 function radians(deg) {
@@ -74,8 +85,8 @@ function size(w, h) {
     const rect = canvas.getBoundingClientRect();
     pmouseX = mouseX;
     pmouseY = mouseY;
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
+    mouseX = e.offsetX;
+    mouseY = e.offsetY;
     
     // mouseMoved関数が定義されていれば呼び出し
     if (typeof mouseMoved === 'function' && !mouseIsPressed) {
@@ -91,10 +102,12 @@ function size(w, h) {
   canvas.addEventListener('mousedown', function(e) {
     mouseIsPressed = true;
     mouseButton = e.button; // 0: 左, 1: 中, 2: 右
-    
+
     // mousePressed関数が定義されていれば呼び出し
-    if (typeof mousePressed === 'function') {
+    if (typeof mousePressed === 'function' && !isMousePressedUndefined) {
       mousePressed();
+    }else{
+      console.log("mousePressed is not function")
     }
   });
   
@@ -111,11 +124,13 @@ function size(w, h) {
   document.addEventListener('keydown', function(e) {
     keyIsPressed = true;
     key = e.key;
-    keyCode = e.keyCode;
-    
+    keyCode = e.code;
+
     // keyPressed関数が定義されていれば呼び出し
-    if (typeof keyPressed === 'function') {
+    if (typeof keyPressed === 'function' && !isKeyPressedUndefined) {
       keyPressed();
+    }else{
+      console.log('keyPressed is not function');
     }
   });
   
@@ -544,16 +559,31 @@ class LiteralNode {
 
 class IdentifierNode {
   constructor(name) {
-    this.type = "Identifier";
-    this.name = name;
+    if(name==="mousePressed" || name=="keyPressed"){
+      this.type = "FunctionCall";
+      this.callee = {
+        "name": name,
+        "type":"Identifier"
+      }
+      this.args = [];
+    }else{
+      this.type = "Identifier";
+      this.name = name;
+    }
   }
 }
 
 class FunctionCallNode {
   constructor(callee, args) {
-    this.type = "FunctionCall";
-    this.callee = callee;
-    this.args = args;
+    if (!callee.name){
+      this.type = "FunctionCall",
+      this.callee = callee.callee,
+      this.args = args
+    }else{
+      this.type = "FunctionCall";
+      this.callee = callee;
+      this.args = args;
+    }
   }
 }
 
@@ -1048,7 +1078,8 @@ class Parser {
     this.nextToken(); // consume "if"
     if (!this.matchToken("LPAREN")) this.error("Expected ( after if");
     this.nextToken();
-    const condition = this.parseExpression();
+    const conditionCheck = this.parseExpression();
+    const condition = (conditionCheck === ("keyPressed" || "mousePressed")) ? conditionCheck : conditionCheck; //TODO
     if (!this.matchToken("RPAREN")) this.error("Expected ) after if condition");
     this.nextToken();
     const thenBlock = this.parseStatement();
@@ -1772,7 +1803,7 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
     case "GlobalFunction":
       const gParams = (ast.params || []).map(p => p.name).join(', ');
       const gBody = generateJavaScriptFromAST(ast.body, context, indent + 1);
-      return `${INDENT}function ${ast.name}(${gParams}) {\n${gBody}\n${INDENT}}`;
+      return `${INDENT}function ${ast.name}(${gParams}) {\n${gBody}\n${INDENT}\n}`;
 
     case "VariableDeclaration":
       let varValue = ast.initializer 
