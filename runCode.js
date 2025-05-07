@@ -397,19 +397,21 @@ class ImportNode {
 }
 
 class ProgramNode {
-  constructor(imports, topLevelElements) {
+  constructor(imports, topLevelElements, allClasses) {
     this.type = "Program";
     this.imports = imports;
     this.topLevelElements = topLevelElements;
+    this.allClasses = allClasses;
   }
 }
 
 class ClassNode {
-  constructor(name, members, baseClass = null) {
+  constructor(name, members, baseClass = null, isAbstract = false) {
     this.type = "Class";
     this.name = name;
     this.members = members;
     this.baseClass = baseClass;  // 継承元クラス名
+    this.isAbstract = isAbstract;
   }
 }
 
@@ -423,12 +425,13 @@ class FieldNode {
 }
 
 class MethodNode {
-  constructor(returnType, name, params, body) {
+  constructor(returnType, name, params, body, isAbstract = false) {
     this.type = "Method";
     this.returnType = returnType;
     this.name = name;
     this.params = params; // 配列 [{ type, name }, ...]
     this.body = body;     // BlockNode
+    this.isAbstract = isAbstract;
   }
 }
 
@@ -570,6 +573,15 @@ class NewArrayNode {
   }
 }
 
+// NewArrayInitNode クラスを追加 (AST ノード)
+class NewArrayInitNode {
+  constructor(arrayType, elements) {
+    this.type = "NewArrayInit";
+    this.arrayType = arrayType;
+    this.elements = elements;  // 初期値の配列
+  }
+}
+
 class NewObjectNode {
   constructor(className, args) {
     this.type = "NewObject";
@@ -608,6 +620,10 @@ class Parser {
     return this.tokens[this.currentIndex] || null;
   }
 
+  peekNext() {
+    return this.tokens[this.currentIndex + 1] || null;
+  }
+
   nextToken() {
     const tok = this.currentToken();
     this.currentIndex++;
@@ -641,17 +657,87 @@ class Parser {
     console.log("プログラム解析開始");
     const imports = [];
     const topLevelElements = [];
+    const allClasses = {}; // クラス情報を格納
 
     // import 文の解析
     while (this.matchToken("KEYWORD", "import")) {
       imports.push(this.parseImportStatement());
     }
 
+    // 最初のパスでクラス定義を走査して情報を集める
+    let tempIndex = this.currentIndex;
+    while (this.currentToken() !== null) {
+      const currentToken = this.currentToken();
+      
+      if (this.matchToken("KEYWORD", "class") || this.matchToken("KEYWORD", "abstract")) {
+        // クラス宣言を読み飛ばして情報だけ取る
+        let isAbstract = false;
+        if (this.matchToken("KEYWORD", "abstract")) {
+          isAbstract = true;
+          this.nextToken();
+        }
+        
+        if (!this.matchToken("KEYWORD", "class")) this.error("Expected 'class'");
+        this.nextToken();
+        
+        if (!this.matchToken("IDENTIFIER")) this.error("Class name expected");
+        const className = this.currentToken().value;
+        this.nextToken();
+        
+        // 継承情報
+        let baseClass = null;
+        if (this.matchToken("KEYWORD", "extends")) {
+          this.nextToken();
+          if (!this.matchToken("IDENTIFIER")) this.error("Base class name expected");
+          baseClass = this.currentToken().value;
+          this.nextToken();
+        }
+        
+        // クラス本体を読み飛ばす
+        let braceCount = 0;
+        if (this.matchToken("LBRACE")) {
+          braceCount++;
+          this.nextToken();
+          
+          // クラスフィールドを収集
+          const fields = [];
+          while (braceCount > 0 && this.currentToken() !== null) {
+            if (this.matchToken("LBRACE")) braceCount++;
+            if (this.matchToken("RBRACE")) braceCount--;
+            
+            // フィールド宣言を見つける
+            if (braceCount > 0 && this.matchToken("TYPE")) {
+              const fieldType = this.parseType();
+              if (this.matchToken("IDENTIFIER")) {
+                const fieldName = this.currentToken().value;
+                fields.push(fieldName);
+              }
+            }
+            
+            if (this.currentToken() !== null) this.nextToken();
+          }
+          
+          // クラス情報を格納
+          allClasses[className] = {
+            isAbstract,
+            baseClass,
+            fields
+          };
+        }
+      } else {
+        // クラス以外は読み飛ばす
+        this.nextToken();
+      }
+    }
+    
+    // インデックスを戻して本格的な解析を開始
+    this.currentIndex = tempIndex;
+
     while (this.currentToken() !== null) {
       const currentToken = this.currentToken();
       console.log(`トップレベル要素解析: インデックス ${this.currentIndex}, トークン [${currentToken.type}:${currentToken.value}]`);
       
-      if (this.matchToken("KEYWORD", "class")) {
+      if (this.matchToken("KEYWORD", "class") || this.matchToken("KEYWORD", "abstract")) {
         topLevelElements.push(this.parseClassDeclaration());
       } else {
         try {
@@ -663,7 +749,7 @@ class Parser {
       }
     }
     console.log("プログラム解析完了");
-    return new ProgramNode(imports, topLevelElements);
+    return new ProgramNode(imports, topLevelElements, allClasses);
   }
 
   parseImportStatement() {
@@ -681,7 +767,15 @@ class Parser {
   }
 
   parseClassDeclaration() {
-    this.nextToken(); // "class" を消費
+    let isAbstract = false;
+    if (this.matchToken("KEYWORD", "abstract")) {
+      isAbstract = true;
+      this.nextToken();  // 'abstract' を消費
+    }
+
+    if (!this.matchToken("KEYWORD", "class")) this.error("Expected 'class'");
+    this.nextToken();
+
     if (!this.matchToken("IDENTIFIER")) this.error("Class name expected");
     const className = this.currentToken().value;
     this.nextToken();
@@ -700,7 +794,7 @@ class Parser {
   
     const members = [];
     while (!this.matchToken("RBRACE")) {
-      const nodeOrArray = this.parseClassMember(className);
+      const nodeOrArray = this.parseClassMember(className, isAbstract);
       if (Array.isArray(nodeOrArray)) {
         members.push(...nodeOrArray);
       } else {
@@ -709,7 +803,7 @@ class Parser {
     }
     this.nextToken(); // "}" 消費
   
-    return new ClassNode(className, members, baseClass);
+    return new ClassNode(className, members, baseClass, isAbstract);
   }
 
   parseType() {
@@ -730,64 +824,152 @@ class Parser {
   }            
 
   // クラスメンバーのパース（修正例）
-parseClassMember(currentClassName) {
-  // コンストラクタ判定：次のトークンが識別子かつその値がクラス名と同じなら
-  if (this.matchToken("IDENTIFIER") && this.currentToken().value === currentClassName) {
-    // これはコンストラクタ
-    const constructorName = this.nextToken().value; // ここは currentClassName と同じはず
-    if (!this.matchToken("LPAREN")) this.error("Expected ( after constructor name");
-    this.nextToken(); // "(" 消費
-    const params = [];
-    // 引数リストの解析（例としてカンマ区切りのパラメータを解析）
-    while (!this.matchToken("RPAREN")) {
-      const paramType = this.parseType();
-      if (!this.matchToken("IDENTIFIER")) this.error("Parameter name expected");
-      const paramName = this.nextToken().value;
-      params.push({ type: paramType, name: paramName });
-      if (this.matchToken("COMMA")) {
-        this.nextToken(); // カンマ消費
+  parseClassMember(currentClassName, classIsAbstract) {
+    // アノテーション風の識別子をスキップ（万が一残っていた場合の対策）
+    if (this.matchToken("IDENTIFIER") && 
+        (this.currentToken().value === "Override" || 
+         this.currentToken().value === "Deprecated" ||
+         this.currentToken().value === "SuppressWarnings")) {
+      this.nextToken(); // アノテーション名をスキップ
+    }
+
+    // コンストラクタ判定
+    if (this.matchToken("IDENTIFIER") && this.currentToken().value === currentClassName) {
+      const constructorName = this.nextToken().value;
+      if (!this.matchToken("LPAREN")) this.error("Expected '(' after constructor name");
+      this.nextToken(); // "(" を消費
+      const params = [];
+      while (!this.matchToken("RPAREN")) {
+        const paramType = this.parseType();
+        if (!this.matchToken("IDENTIFIER")) this.error("Parameter name expected");
+        const paramName = this.nextToken().value;
+        params.push({ type: paramType, name: paramName });
+        if (this.matchToken("COMMA")) this.nextToken();
+      }
+      this.nextToken(); // ")" を消費
+      const body = this.parseBlock();
+      return new MethodNode("constructor", constructorName, params, body, false);
+    }
+
+    // 抽象メソッド宣言判定（class が abstract の場合のみ）
+    if (classIsAbstract && this.matchToken("KEYWORD", "abstract")) {
+      this.nextToken(); // "abstract" を消費
+      // 戻り値の型を取得
+      if (!this.matchToken("TYPE") && !this.matchToken("IDENTIFIER") && !(this.matchToken("KEYWORD") && this.currentToken().value === "void")) {
+        this.error("Return type expected for abstract method");
+      }
+      const returnType = this.parseType();
+      
+      // メソッド名を取得
+      if (!this.matchToken("IDENTIFIER")) this.error("Method name expected for abstract method");
+      const name = this.nextToken().value;
+      
+      // 引数リストを解析
+      if (!this.matchToken("LPAREN")) this.error("Expected '(' after abstract method name");
+      this.nextToken(); // "(" を消費
+      
+      const params = [];
+      while (!this.matchToken("RPAREN")) {
+        if (this.matchToken("TYPE") || this.matchToken("IDENTIFIER")) {
+          const paramType = this.parseType();
+          if (!this.matchToken("IDENTIFIER")) this.error("Parameter name expected in abstract method");
+          const paramName = this.nextToken().value;
+          params.push({ type: paramType, name: paramName });
+          if (this.matchToken("COMMA")) this.nextToken();
+        } else if (this.matchToken("COMMA")) {
+          this.nextToken(); // カンマをスキップ
+        } else {
+          break;
+        }
+      }
+      
+      if (!this.matchToken("RPAREN")) this.error("Expected ')' after abstract method parameters");
+      this.nextToken(); // ")" を消費
+      
+      if (!this.matchToken("SEMICOLON")) this.error("Expected ';' after abstract method declaration");
+      this.nextToken(); // ";" を消費
+      
+      return new MethodNode(returnType, name, params, null, true);
+    }
+
+    // 別の形式の抽象メソッド宣言判定（class が abstract の場合のみ）
+    if (classIsAbstract && (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void"))) {
+      const peek1 = this.peekNext(); 
+      const peek2 = this.tokens[this.currentIndex + 2];
+      
+      // TYPE + IDENTIFIER + LPAREN パターンの抽象メソッド
+      if (peek1 && peek1.type === "IDENTIFIER" && peek2 && peek2.type === "LPAREN") {
+        // 型とメソッド名
+        const returnType = this.parseType();
+        const name       = this.nextToken().value;
+            // "(" を必ず消費
+        if (!this.matchToken("LPAREN")) this.error("Expected '(' after abstract method name");
+        this.nextToken();
+        
+        // パラメータの解析
+        const params = [];
+        while (!this.matchToken("RPAREN")) {
+          if (this.matchToken("TYPE") || this.matchToken("IDENTIFIER")) {
+            const paramType = this.parseType();
+            if (!this.matchToken("IDENTIFIER")) this.error("Parameter name expected in abstract method");
+            const paramName = this.nextToken().value;
+            params.push({ type: paramType, name: paramName });
+            if (this.matchToken("COMMA")) this.nextToken();
+          } else if (this.matchToken("COMMA")) {
+            this.nextToken(); // カンマをスキップ
+          } else {
+            break;
+          }
+        }
+        
+        // ")" を必ず消費
+        if (!this.matchToken("RPAREN")) this.error("Expected ')' after abstract method signature");
+        this.nextToken();
+        
+        // ";" を必ず消費
+        if (!this.matchToken("SEMICOLON")) this.error("Expected ';' after abstract method");
+        this.nextToken();
+        
+        return new MethodNode(returnType, name, params, null, true);
       }
     }
-    this.nextToken(); // ")" 消費
-    const body = this.parseBlock();
-    // コンストラクタは AST 上で "constructor" として扱う
-    return new MethodNode("constructor", constructorName, params, body);
-  }
-  // 通常のフィールドまたはメソッドの処理
-  else if (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void")) {
-    const typeStr = this.parseType();
-    if (!this.matchToken("IDENTIFIER")) this.error("Member name expected");
-    const name = this.nextToken().value;
-    if (this.matchToken("LPAREN")) {
-      return this.parseMethodDeclaration(typeStr, name);
-    } else {
 
+    // 通常のフィールド or メソッド
+    if (this.matchToken("TYPE") || this.matchToken("KEYWORD", "void") || this.matchToken("IDENTIFIER")) {
+      const typeStr = this.parseType();
+      if (!this.matchToken("IDENTIFIER")) this.error("Member name expected");
+      const name = this.nextToken().value;
+
+      // メソッド
+      if (this.matchToken("LPAREN")) {
+        // isAbstract = falseを明示
+        const m = this.parseMethodDeclaration(typeStr, name);
+        m.isAbstract = false;
+        return m;
+      }
+
+      // フィールド宣言
       const fieldNodes = [];
       do {
-        fieldNodes.push(
-          new FieldNode(typeStr, name,
-            this.matchToken("ASSIGN") ? (this.nextToken()  && this.parseExpression()) : null
-          ));
-
+        const init = this.matchToken("ASSIGN") ? (this.nextToken() && this.parseExpression()) : null;
+        fieldNodes.push(new FieldNode(typeStr, name, init));
         if (this.matchToken("COMMA")) {
-          this.nextToken(); // consume ","
+          this.nextToken();
           if (!this.matchToken("IDENTIFIER")) this.error("Field name expected");
           const nextName = this.nextToken().value;
           fieldNodes[fieldNodes.length - 1] = new FieldNode(typeStr, nextName,
             this.matchToken("ASSIGN") ? (this.nextToken() && this.parseExpression()) : null
           );
-        }else {
-          break;
-        }
-      }while (true);
+        } else break;
+      } while (true);
 
-      if (!this.matchToken("SEMICOLON")) this.error("Expected ; after field declaration");
-      this.nextToken(); // ";" 消費
+      if (!this.matchToken("SEMICOLON")) this.error("Expected ';' after field declaration");
+      this.nextToken();
       return fieldNodes;
     }
+
+    this.error("Invalid class member");
   }
-  this.error("Invalid class member");
-}
        
 
   parseMethodDeclaration(returnType, name) {
@@ -804,7 +986,7 @@ parseClassMember(currentClassName) {
     }
     this.nextToken(); // consume ")"
     const body = this.parseBlock();
-    return new MethodNode(returnType, name, params, body);
+    return new MethodNode(returnType, name, params, body, false);
   }
 
   parseGlobalElement() {
@@ -1201,8 +1383,54 @@ parseClassMember(currentClassName) {
           this.error("Expected type or class after 'new'");
         }
         const newType = this.nextToken().value;
+        
         if (this.matchToken("LBRACKET")) {
           this.nextToken(); // '[' 消費
+          
+          // 空の配列初期化子を処理: new Type[] { ... }
+          if (this.matchToken("RBRACKET")) {
+            this.nextToken(); // ']' 消費
+            
+            // 配列初期化子
+            if (this.matchToken("LBRACE")) {
+              this.nextToken(); // '{' 消費
+              const elements = [];
+              
+              // 空の初期化子の場合
+              if (this.matchToken("RBRACE")) {
+                this.nextToken(); // '}' 消費
+                return new NewArrayInitNode(newType, elements);
+              }
+              
+              // 要素がある初期化子
+              do {
+                if (this.matchToken("COMMA")) {
+                  this.nextToken(); // カンマをスキップ
+                  continue;
+                }
+                
+                const element = this.parseExpression();
+                if (element !== null) {
+                  elements.push(element);
+                }
+                
+                if (!this.matchToken("COMMA") && !this.matchToken("RBRACE")) {
+                  this.error("Expected ',' or '}' in array initializer");
+                }
+              } while (this.matchToken("COMMA") && this.nextToken());
+              
+              if (!this.matchToken("RBRACE")) {
+                this.error("Expected '}' to close array initializer");
+              }
+              this.nextToken(); // '}' 消費
+              
+              return new NewArrayInitNode(newType, elements);
+            }
+            // 初期化子なしの空配列 new Type[]
+            return new NewArrayNode(newType, new LiteralNode(0, "number"));
+          }
+          
+          // サイズ指定配列: new Type[SIZE]
           const sizeExpr = this.parseExpression();
           if (!this.matchToken("RBRACKET")) {
             this.error("Expected ']' in new array expression");
@@ -1349,13 +1577,36 @@ parseClassMember(currentClassName) {
 // --------------------------------------------------
 // クラスフィールドかどうかを判定する関数
 function isClassField(identifier, context) {
-  console.log(`isClassField: ${identifier}, ${context.classFields}`);
-  return context && context.classFields && context.classFields.indexOf(identifier) !== -1;
+  // Processingのグローバル関数かどうかをチェック
+  if (PROCESSING_GLOBALS.includes(identifier)) {
+    return false;
+  }
+
+  // クラスフィールドの直接チェック
+  const isDirectField = context && context.classFields && context.classFields.includes(identifier);
+  
+  // 親クラスから継承したフィールドのチェック
+  const isInheritedField = context && context.parentClassFields && context.parentClassFields.includes(identifier);
+  
+  // どのフィールドにも属さないが、メソッド内で使われるクラスインスタンス変数かどうか
+  // Processingのスタイルではthisなしでアクセスできる
+  const isImplicitField = 
+    context && context.inMethod && 
+    !context.localVariables?.includes(identifier) && 
+    /^[a-z][a-zA-Z0-9]*$/.test(identifier) && // 先頭が小文字で始まる識別子は大抵フィールド
+    !PROCESSING_GLOBALS.includes(identifier); // グローバル関数でない
+  
+  return isDirectField || isInheritedField || isImplicitField;
 }
 
 function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
   const INDENT = '  '.repeat(indent);
   if (!ast) return '';
+
+  // プログラムノードからクラス情報を取得し、コンテキストに追加
+  if (ast.type === "Program" && ast.allClasses) {
+    context = { ...context, allClasses: ast.allClasses };
+  }
 
   if(Array.isArray(ast)) {
     return ast
@@ -1373,6 +1624,22 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       return `${imports}\n\n${topLevel}`;
 
     case "Class":
+      
+      // 抽象クラス処理
+      let classHeader = '';
+      if(ast.isAbstract) {
+        classHeader += `${INDENT}// abstract class\n`;
+      }
+
+      // 親クラスのフィールド情報を追加（可能であれば）
+      let parentClassFields = [];
+      if (ast.baseClass && context.allClasses) {
+        const parentClass = context.allClasses[ast.baseClass];
+        if (parentClass && parentClass.fields) {
+          parentClassFields = parentClass.fields;
+        }
+      }
+      
       // クラスの場合、まずフィールドの名前を集める
       const classFields = [];
       for (const member of ast.members) {
@@ -1380,8 +1647,14 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
           classFields.push(member.fieldName);
         }
       }
+      
       // クラス内では新たなコンテキストとして classFields を渡す
-      const newContext = Object.assign({}, context, { classFields });
+      const newContext = Object.assign({}, context, { 
+        classFields, 
+        parentClassFields,
+        allClasses: context.allClasses
+      });
+      
       const extendsClause = ast.baseClass ? ` extends ${ast.baseClass}` : '';
       let constructorBody = "";
       let methodStr = "";
@@ -1399,16 +1672,75 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
           if (member.name === ast.name) {
             // コンストラクタの場合：識別子のthis変換を抑制するためフラグを付与
             hasConstructor = true;
-            constructorParams = (member.params || []).map(p => p.name).join(', ');
-            constructorBody += generateJavaScriptFromAST(
-              member.body, 
-              Object.assign({}, newContext, { disableFieldPrefix: true }),
-              indent + 1
-            ) + "\n";
+            const params = member.params || [];
+            constructorParams = params.map(p => p.name).join(', ');
+            
+            // メソッド内で引数名を追跡するためのコンテキスト
+            const methodParamsNames = params.map(p => p.name);
+            
+            // superの呼び出しを含むコンストラクタボディを正しい順序で生成
+            const bodyContext = Object.assign({}, newContext, { 
+              disableFieldPrefix: true,
+              methodParams: methodParamsNames,
+              inConstructor: true 
+            });
+            const rawBody = generateJavaScriptFromAST(member.body, bodyContext, indent + 1);
+            
+            // パラメータからフィールドへの代入を生成（フィールド初期化値がない場合）
+            let paramAssignments = "";
+            if (member.params && member.params.length > 0) {
+              // 既に初期化されたフィールドを追跡
+              const initializedFields = new Set();
+              
+              member.params.forEach(param => {
+                if (classFields.includes(param.name) && !initializedFields.has(param.name)) {
+                  paramAssignments += `    this.${param.name} = ${param.name};\n`;
+                  initializedFields.add(param.name);
+                }
+              });
+            }
+            
+            // superの呼び出しがある場合は、それ以外の初期化コードとは別にする
+            if (rawBody && rawBody.includes("super(")) {
+              const superCallMatch = rawBody.match(/\s*super\(.*?\);/);
+              if (superCallMatch) {
+                const superCall = superCallMatch[0];
+                // superを抽出し、それ以外のコードを残りのボディとする
+                const restOfBody = rawBody.replace(superCall, "");
+                constructorBody = superCall + "\n" + paramAssignments;
+                
+                // 重複をフィルタリングして追加のコードを追加
+                if (restOfBody.trim()) {
+                  // 中身がある場合のみ追加
+                  constructorBody += restOfBody;
+                }
+              } else {
+                constructorBody = paramAssignments + rawBody;
+              }
+            } else {
+              constructorBody = paramAssignments + rawBody;
+            }
           } else {
-            const params = (member.params || []).map(p => p.name).join(', ');
-            const body = generateJavaScriptFromAST(member.body, newContext, indent + 1);
-            methodStr += `  ${member.name}(${params}) {\n${body}\n  }\n`;
+            // 抽象メソッドかどうか
+            const params = member.params || [];
+            const paramNames = params.map(p => p.name);
+            const paramsStr = paramNames.join(', ');
+            
+            if (member.isAbstract) {
+              // 抽象メソッドは空の本体を持つようにする（エラーをスローしない）
+              methodStr += 
+                `  ${member.name}(${paramsStr}) {\n` +
+                `    // 抽象メソッド\n` +
+                `  }\n`;
+            } else {
+              // 通常メソッド - メソッド内ではフィールド名をthis.フィールド名に変換
+              const methodContext = Object.assign({}, newContext, { 
+                inMethod: true,
+                methodParams: paramNames
+              });
+              const body = generateJavaScriptFromAST(member.body, methodContext, indent + 1);
+              methodStr += `  ${member.name}(${paramsStr}) {\n${body}\n  }\n`;
+            }
           }
         } else {
           methodStr += `  // Unhandled class member: ${member.type}\n`;
@@ -1421,7 +1753,7 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       }
       const constructorStr = `  constructor(${constructorParams}) {\n${constructorBody}  }\n`;
       
-      return `${INDENT}class ${ast.name}${extendsClause} {\n${constructorStr}${methodStr}${INDENT}}`;
+      return `${classHeader}${INDENT}class ${ast.name}${extendsClause} {\n${constructorStr}${methodStr}${INDENT}}`;
       
     case "Field":
       // ※ グローバル変数として Field が出力されるケースがある場合、
@@ -1449,11 +1781,41 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       return `${INDENT}let ${ast.varName} = ${varValue};`;
 
     case "Block":
+      // ブロック内のローカル変数を特定
+      const localVariables = [];
+      if (Array.isArray(ast.statements)) {
+        for (const stmt of ast.statements) {
+          if (stmt.type === "VariableDeclaration") {
+            localVariables.push(stmt.varName);
+          }
+        }
+      }
+      
+      // ローカル変数情報を含む新しいコンテキスト
+      const blockContext = { ...context, localVariables };
+      
       return (ast.statements || [])
-        .map(stmt => generateJavaScriptFromAST(stmt, context, indent))
+        .map(stmt => generateJavaScriptFromAST(stmt, blockContext, indent))
         .join('\n');
 
     case "ExpressionStatement":
+      // コンストラクタ内のフィールド初期化（x = tempX など）を検出して this. を付加
+      if (context.inConstructor && ast.expression && ast.expression.type === "BinaryOp" && 
+          ast.expression.operator === "=" && ast.expression.left.type === "Identifier") {
+        
+        const leftName = ast.expression.left.name;
+        const rightExpr = generateJavaScriptFromAST(ast.expression.right, context);
+        
+        // クラスのフィールドとして扱う（this.を追加）
+        if (context.classFields && context.classFields.includes(leftName)) {
+          return `${INDENT}this.${leftName} = ${rightExpr};`;
+        } 
+        // クラスのフィールドリストに入っていなくても暗黙的に宣言されるフィールドとして扱う
+        else if (/^[a-z][a-zA-Z0-9]*$/.test(leftName) && !PROCESSING_GLOBALS.includes(leftName)) {
+          return `${INDENT}this.${leftName} = ${rightExpr};`;
+        }
+      }
+      
       return `${INDENT}${generateJavaScriptFromAST(ast.expression, context)};`;
 
     case "IfStatement":
@@ -1507,8 +1869,18 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       if (opMap[operator]) {
         operator = opMap[operator];
       }
-      let left = generateJavaScriptFromAST(ast.left, context);
-      let right = generateJavaScriptFromAST(ast.right, context);
+      
+      // 左右の式を生成
+      const leftContext = { ...context };
+      const rightContext = { ...context };
+      
+      // = 演算子の場合は、左辺は常にthisがつく可能性があるのでdisableFieldPrefixをセット
+      if (operator === "=") {
+        leftContext.disableAssignLeftPrefix = true;
+      }
+      
+      let left = generateJavaScriptFromAST(ast.left, leftContext);
+      let right = generateJavaScriptFromAST(ast.right, rightContext);
       const precedence = {
         '*': 3, '/': 3, '%': 3,
         '+': 2, '-': 2,
@@ -1565,7 +1937,19 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
       }
 
     case "Identifier":
-      return isClassField(ast.name, context) ? `this.${ast.name}` : ast.name;
+      // メソッド内でのフィールド参照
+      if (context.inMethod) {
+        // このメソッドのローカル変数でないかつ、フィールドと判断される場合はthisを付ける
+        // ただし、メソッドの引数に含まれる名前は対象外
+        if (isClassField(ast.name, context) && !context.methodParams?.includes(ast.name)) {
+          return `this.${ast.name}`;
+        }
+      } 
+      // コンストラクタのthis重複などを避ける
+      else if (isClassField(ast.name, context) && !context.disableFieldPrefix) {
+        return `this.${ast.name}`;
+      }
+      return ast.name;
 
     case "FunctionCall":
       if (ast.callee.type === "Identifier" && ast.callee.name === "random") {
@@ -1606,6 +1990,11 @@ function generateJavaScriptFromAST(ast, context = {}, indent = 0) {
         return `super.${generateJavaScriptFromAST(ast.property, context)}`;
       }
       return `${generateJavaScriptFromAST(ast.object, context)}.${generateJavaScriptFromAST(ast.property, context)}`;
+
+    case "NewArrayInit":
+      return `[${(ast.elements || [])
+        .map(elem => generateJavaScriptFromAST(elem, context))
+        .join(', ')}]`;
 
     default:
       return `${INDENT}// Unhandled AST node: ${ast.type}`;
@@ -1674,6 +2063,22 @@ class Lexer {
   }
 
   nextToken() {
+    // @Override, @Deprecated...）をスキップ 
+    if (this.currentChar() === '@') {
+      // @から始まる全てのコンテンツを現在の行の終わりまでスキップ
+      while (!this.isEOF() && this.currentChar() !== '\n') {
+        this.advance();
+      }
+      
+      // 改行もスキップ
+      if (!this.isEOF() && this.currentChar() === '\n') {
+        this.advance();
+      }
+      
+      // 次のトークンを再帰的に取得
+      return this.nextToken();
+    }
+    
     this.skipWhitespace();
     if (this.isEOF()) return null;
     
@@ -1703,7 +2108,7 @@ class Lexer {
         this.advance();
       }
       const types = ["boolean", "byte", "char", "color", "double", "float", "int", "long", "String"];
-      const keywords = ["if", "else", "for", "while", "do", "switch", "case", "break", "continue", "return", "void", "class", "new", "extends", "import"];
+      const keywords = ["if", "else", "for", "while", "do", "switch", "case", "break", "continue", "return", "void", "class", "new", "extends", "abstract", "import"];
       if (types.includes(idStr)) {
         return new Token("TYPE", idStr);
       } else if (keywords.includes(idStr)) {
@@ -1830,6 +2235,7 @@ class Lexer {
       }
       if (this.currentChar() !== "'") {
         console.error("文字リテラルが正しく閉じられていません");
+        return this.nextToken(); // 閉じていない場合は次のトークンを取得
       } else {
         this.advance(); // 終端の ' を消費
       }
@@ -1861,3 +2267,20 @@ function tokenize(code) {
   return tokens;
 }
 // window.tokenize = tokenize;
+
+// Processingのグローバル関数リスト
+const PROCESSING_GLOBALS = [
+  // 描画関数
+  "fill", "stroke", "noFill", "noStroke", "background", 
+  "ellipse", "rect", "line", "point", "triangle", "quad", "arc",
+  "bezier", "curve", "vertex", "beginShape", "endShape",
+  // 変換関数
+  "translate", "rotate", "scale", "pushMatrix", "popMatrix",
+  // モード設定
+  "rectMode", "ellipseMode", "colorMode", "strokeWeight", "strokeCap", "strokeJoin",
+  // ユーティリティ
+  "size", "loop", "noLoop", "redraw", "frameRate",
+  // その他よく使われる関数
+  "random", "map", "constrain", "dist", "abs", "sin", "cos", "tan",
+  "millis", "second", "minute", "hour", "day", "month", "year"
+];
