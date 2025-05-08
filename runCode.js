@@ -396,6 +396,59 @@ const UP = 38;
 const DOWN = 40;
 const LEFT_ARROW = 37;
 const RIGHT_ARROW = 39;
+
+// // Math Calculation
+// function abs(n) {
+//   return Math.abs(n);
+// }
+// function ceil(n) {
+//   return Math.ceil(n);
+// }
+// function sqrt(n) {
+//   return Math.sqrt(n)
+// }
+// function sq(n) {
+//   return n*n;
+// }
+// function round(n) {
+//   return Math.round(n);
+// }
+// function pow(x,y) {
+//   return Math.pow(x,y);
+// }
+// function norm(v,b,e) {
+//   return (v-b)/(e-b);
+// }
+// function mag() {
+// }
+// // Math Trigonometry
+// function acos(v) {
+//   return Math.acos(v);
+// }
+// function asin(v) {
+//   return Math.asin(v);
+// }
+// function atan(v) {
+//   return Math.atan(v);
+// }
+// function atan2(x, y) {
+//   return Math.atan(y/x);
+// }
+// function sin(d) {
+//   return Math.sin(d);
+// }
+// function cos(d) {
+//   return Math.cos(d);
+// }
+// function tan(d) {
+//   return Math.tan(d);
+// }
+// function degrees(rad) {
+//   return 180 * rad / Math.PI;
+// }
+// function radians(deg) {
+//   return deg * Math.PI / 180;
+// }
 `;
 
 const processingAPI2 = `
