@@ -1,12 +1,13 @@
 void setup() {
     size(400, 400);
-    background(255);
+    strokeWeight(48.0);
+    strokeCap(ROUND);
+    line(80, 120, 320, 120);
+    strokeCap(SQUARE);
+    line(80, 200, 320, 200);
+    strokeCap(PROJECT);
+    line(80, 280, 320, 280);
 }
 
 void draw() {
-    if (mousePressed) {
-        noStroke();
-        fill(0); // 黒
-        ellipse(mouseX, mouseY, 20, 20);
-    }
 }
