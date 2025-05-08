@@ -3,6 +3,7 @@ window.onload = runPDE;
 const processingAPI = `
 let ctx;
 let width = 0, height = 0;
+const TRUE = true;
 let fillColor = 'black';
 let strokeColor = 'black';
 let useStroke = true;
@@ -67,6 +68,13 @@ function scale(sx, sy = sx) {
 // モード制御
 let rectModeVal = 'CORNER';
 let ellipseModeVal = 'CENTER';
+const RGB = 'RGB';
+const HSB = 'HSB';
+let colorType = RGB;
+let colorRange1Rate = 1;
+let colorRange2Rate = 1;
+let colorRange3Rate = 1;
+let colorRange4Rate = 1;
 function rectMode(mode) {
   rectModeVal = mode;
 }
@@ -74,12 +82,64 @@ function ellipseMode(mode) {
   ellipseModeVal = mode;
 }
 
+function strokeWeight(w) {
+  ctx.lineWidth = w;
+}
+
+let SQUARE = 'SQUARE';
+let PROJECT = 'PROJECT';
+let ROUND = 'ROUND';
+function strokeCap(cap){
+  _cap = {
+    'SQUARE': 'butt',
+    'PROJECT': 'square',
+    'ROUND': 'round',
+  }
+  ctx.lineCap = _cap[cap];
+}
+
+// // 色関係
+// function colorMode(mode, range1=undefined, range2=undefined, range3=undefined, range4=undefined) {
+//   colorType = (mode === "RGB" || mode === "HSB") ? mode : "RGB"; // RGB or HSB
+//   if(colorType === 'RGB'){
+//     colorRange1Rate = 255/range1 || 1; // R
+//     colorRange2Rate = 255/range2 || colorRange1Rate; // G
+//     colorRange3Rate = 255/range3 || colorRange1Rate; // B
+//     colorRange4Rate = 1/range4 || 1; // A
+//   }
+//   if(colorType === 'HSB'){
+//     colorRange1Rate = 360/range1 || 1; // H
+//     colorRange2Rate = 100/range2 || colorRange1Rate; // S
+//     colorRange3Rate = 100/range3 || colorRange1Rate; // B
+//     colorRange4Rate = 1/range4 || 1; // A
+//   }
+// }
+
+// function Color(r, g, b, a){
+//   if(r[0] === '#' || r.length === 4 || r.length === 7){
+//     // HTML color code
+//   }else{
+//     if(colorType==='RGB){
+//       _r = r*colorRange1Rate;
+//       _g = g*colorRange2Rate || _r;
+//       _b = b*colorRange3Rate || _r;
+//       _a = a*colorRange4Rate || 1;
+//     }else{
+//       _r = r*colorRange1Rate;
+//       _g = g*colorRange2Rate || _r;
+//       _b = b*colorRange3Rate || _g;
+//       _a = a*colorRange4Rate || 1;
+//     }
+//   }
+// }
+
 function size(w, h) {
   const canvas = document.getElementById("canvas");
   canvas.width = width = w;
   canvas.height = height = h;
   ctx = canvas.getContext("2d");
-    
+  
+  ctx.lineCap = 'round';
   // マウスイベントのセットアップ
   canvas.addEventListener('mousemove', function(e) {
     const rect = canvas.getBoundingClientRect();
@@ -144,8 +204,8 @@ function size(w, h) {
   });
 }
 
-function background(r, g = r, b = r) {
-  ctx.fillStyle = \`rgb(\${r}, \${g}, \${b})\`;
+function background(r, g = r, b = r, a = 1) {
+  ctx.fillStyle = (colorType === RGB) ? \`rgba(\${r*colorRange1Rate}, \${g*colorRange2Rate}, \${b*colorRange3Rate}, \${a*colorRange4Rate})\`:\`hsl(\${r*colorRange1Rate}deg \${g*colorRange2Rate}% \${b*colorRange3Rate}% / \${a*colorRange4Rate})\`;
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -246,7 +306,7 @@ function bezier(x1, y1, x2, y2, x3, y3, x4, y4) {
   if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
 }
 
-function fill(r, g, b) {
+function fill(r, g = r, b = r) {
   fillColor = \`rgb(\${r}, \${g}, \${b})\`;
   useFill = true;
 }
@@ -309,7 +369,10 @@ function constrain(value, min, max) {
 
 // 特殊定数
 const PI = Math.PI;
-
+const HALF_PI = PI/2;
+const QUARTER_PI/4;
+const TAU = 2*PI;
+const TWO_PI = 2*PI;
 // arc
 const OPEN  = 'OPEN';
 const CHORD = 'CHORD';
