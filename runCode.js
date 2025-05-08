@@ -440,6 +440,16 @@ function floor(n) {
 function exp(n) {
   return Math.exp(n);
 }
+function dist(x1,y1,x2,y2,z1=undefined,z2=undefined) {
+  if(typeof z1!=='undefined'&&typeof z2!=='undefined'){
+    return Math.sqrt(Math.pow(x1-y2,2)+Math.pow(y1-z1,2)+Math.pow(x2-z2,2));
+  }return Math.sqrt(Math.pow(x1-x2,2)+Math.pow(y1-y2,2));
+}
+function constain(amt,l,h) {
+  if(amt<l) return l;
+  if(amt>h) return h;
+  return amt;
+}
 // Math Trigonometry
 function acos(v) {
   return Math.acos(v);
