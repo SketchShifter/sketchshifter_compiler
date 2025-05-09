@@ -94,7 +94,7 @@ function strokeCap(cap){
     'SQUARE': 'butt',
     'PROJECT': 'square',
     'ROUND': 'round',
-  }
+  };
   ctx.lineCap = _cap[cap];
 }
 
@@ -167,7 +167,7 @@ function size(w, h) {
     if (typeof mousePressed === 'function' && !isMousePressedUndefined) {
       mousePressed();
     }else{
-      console.log("mousePressed is not function")
+      console.error("mousePressed is not function");
     }
   });
   
@@ -374,10 +374,10 @@ function constrain(value, min, max) {
 
 // 特殊定数
 const PI = Math.PI;
-const HALF_PI = PI/2;
-const QUARTER_PI/4;
-const TAU = 2*PI;
-const TWO_PI = 2*PI;
+const HALF_PI = Math.PI/2;
+const QUARTER_PI = Math.PI/4;
+const TAU = 2*Math.PI;
+const TWO_PI = 2*Math.PI;
 // arc
 const OPEN  = 'OPEN';
 const CHORD = 'CHORD';
@@ -401,6 +401,88 @@ const UP = 38;
 const DOWN = 40;
 const LEFT_ARROW = 37;
 const RIGHT_ARROW = 39;
+
+function print(txt) {
+  console.log(txt);
+}
+function println(txt) {
+  console.log(txt);
+}
+// Math Calculation
+function abs(n) {
+  return Math.abs(n);
+}
+function ceil(n) {
+  return Math.ceil(n);
+}
+function sqrt(n) {
+  return Math.sqrt(n)
+}
+function sq(n) {
+  return pow(n,2);
+}
+function round(n) {
+  return Math.round(n);
+}
+function pow(x,y) {
+  return Math.pow(x,y);
+}
+function norm(v,b,e) {
+  return (v-b)/(e-b);
+}
+function mag(x,y) {
+  return Math.sqrt(Math.pow(x,2)+Math.pow(y,2));
+}
+function log(n) {
+  return Math.log(n);
+}
+function lerp(a,b,amt) {
+  return a+(b-a)*amt;
+}
+function floor(n) {
+  return Math.floor(n);
+}
+function exp(n) {
+  return Math.exp(n);
+}
+function dist(x1,y1,x2,y2,z1=undefined,z2=undefined) {
+  if(typeof z1!=='undefined'&&typeof z2!=='undefined'){
+    return Math.sqrt(Math.pow(x1-y2,2)+Math.pow(y1-z1,2)+Math.pow(x2-z2,2));
+  }return Math.sqrt(Math.pow(x1-x2,2)+Math.pow(y1-y2,2));
+}
+function constain(amt,l,h) {
+  if(amt<l) return l;
+  if(amt>h) return h;
+  return amt;
+}
+// Math Trigonometry
+function acos(v) {
+  return Math.acos(v);
+}
+function asin(v) {
+  return Math.asin(v);
+}
+function atan(v) {
+  return Math.atan(v);
+}
+function atan2(x, y) {
+  return Math.atan(y/x);
+}
+function sin(d) {
+  return Math.sin(d);
+}
+function cos(d) {
+  return Math.cos(d);
+}
+function tan(d) {
+  return Math.tan(d);
+}
+function degrees(rad) {
+  return 180 * rad / Math.PI;
+}
+function radians(deg) {
+  return deg * Math.PI / 180;
+}
 `;
 
 const processingAPI2 = `

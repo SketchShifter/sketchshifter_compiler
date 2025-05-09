@@ -1,13 +1,10 @@
 void setup() {
-    size(400, 400);
-    strokeWeight(48.0);
-    strokeCap(ROUND);
-    line(80, 120, 320, 120);
-    strokeCap(SQUARE);
-    line(80, 200, 320, 200);
-    strokeCap(PROJECT);
-    line(80, 280, 320, 280);
+    size(400,400);
 }
 
-void draw() {
+void draw() 
+{ 
+  background(204);
+  float mx = constrain(mouseX, 30, 200);
+  rect(mx-10, 40, 20, 20);
 }
