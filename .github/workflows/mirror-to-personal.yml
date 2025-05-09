@@ -37,6 +37,6 @@ jobs:
           git commit -m "Mirror compiler to frontend/public/scripts on $(date)" || echo "No changes to commit"
 
           echo "Pushing with token..."
-          git push https://${{ secrets.PERSONAL_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git main
+          git push https://x-access-token:${{ secrets.PERSONAL_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git main
 
 
