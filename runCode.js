@@ -2372,7 +2372,7 @@ const PROCESSING_GLOBALS = [
   // 描画関数
   "fill", "stroke", "noFill", "noStroke", "background", 
   "ellipse", "rect", "line", "point", "triangle", "quad", "arc",
-  "bezier", "curve", "vertex", "beginShape", "endShape",
+  "circle","bezier", "curve", "vertex", "beginShape", "endShape",
   // 変換関数
   "translate", "rotate", "scale", "pushMatrix", "popMatrix",
   // モード設定
