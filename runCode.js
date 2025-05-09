@@ -298,6 +298,11 @@ function arc(x, y, w, h, start, stop, mode = 'OPEN') {
   if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
 }
 
+function circle(x, y, r) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 2 * Math.PI, false);
+}
+
 // Bézier曲線
 function bezier(x1, y1, x2, y2, x3, y3, x4, y4) {
   ctx.beginPath();
