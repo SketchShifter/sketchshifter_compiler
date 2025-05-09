@@ -18,15 +18,17 @@ jobs:
 
       - name: Clone destination repository (sketchshifter_frontend)
         run: |
-          git clone https://${{ secrets.PERSONAL_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git destination
-          
-          echo "Clearing destination public/scripts..."
-          rm -rf destination/public/scripts/*
-          
-          echo "Copying compiler contents..."
-          cp -r . destination/public/scripts/
+          echo "Cloning sketchshifter_frontend..."
+          git clone https://${{ secrets.FRONTEND_PUSH_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git /tmp/destination
 
-          cd destination
+          echo "Clearing destination public/scripts..."
+          rm -rf /tmp/destination/public/scripts/*
+          mkdir -p /tmp/destination/public/scripts
+
+          echo "Copying compiler contents..."
+          cp -r . /tmp/destination/public/scripts/
+
+          cd /tmp/destination
 
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
@@ -34,3 +36,4 @@ jobs:
           git add public/scripts
           git commit -m "Mirror compiler to frontend/public/scripts on $(date)" || echo "No changes to commit"
           git push origin main
+
