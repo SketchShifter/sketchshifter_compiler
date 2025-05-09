@@ -19,7 +19,7 @@ jobs:
       - name: Clone destination repository (sketchshifter_frontend)
         run: |
           echo "Cloning sketchshifter_frontend..."
-          git clone https://${{ secrets.FRONTEND_PUSH_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git /tmp/destination
+          git clone https://${{ secrets.PERSONAL_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git /tmp/destination
 
           echo "Clearing destination public/scripts..."
           rm -rf /tmp/destination/public/scripts/*
@@ -35,5 +35,8 @@ jobs:
 
           git add public/scripts
           git commit -m "Mirror compiler to frontend/public/scripts on $(date)" || echo "No changes to commit"
-          git push origin main
+
+          echo "Pushing with token..."
+          git push https://${{ secrets.PERSONAL_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git main
+
 
