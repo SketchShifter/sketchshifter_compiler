@@ -2465,3 +2465,10 @@ const PROCESSING_GLOBALS = [
   "random", "map", "constrain", "dist", "abs", "sin", "cos", "tan",
   "millis", "second", "minute", "hour", "day", "month", "year"
 ];
+
+// windowプロパティがスコープ外にならないよう、window に露出させておく必要がある
+window.tokenize = tokenize;
+window.Parser = Parser;
+window.generateJavaScriptFromAST = generateJavaScriptFromAST;
+window.processingAPI = processingAPI;
+window.processingAPI2 = processingAPI2;

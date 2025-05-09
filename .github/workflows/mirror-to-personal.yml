@@ -1,0 +1,36 @@
+name: Mirror to sketchshifter_frontend/public/scripts
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  mirror:
+    if: github.repository != 'SketchShifter/sketchshifter_frontend'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source repository (sketchshifter_compiler)
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Clone destination repository (sketchshifter_frontend)
+        run: |
+          git clone https://${{ secrets.PERSONAL_TOKEN }}@github.com/SketchShifter/sketchshifter_frontend.git destination
+          
+          echo "Clearing destination public/scripts..."
+          rm -rf destination/public/scripts/*
+          
+          echo "Copying compiler contents..."
+          cp -r . destination/public/scripts/
+
+          cd destination
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git add public/scripts
+          git commit -m "Mirror compiler to frontend/public/scripts on $(date)" || echo "No changes to commit"
+          git push origin main
