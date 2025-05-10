@@ -132,6 +132,25 @@ function strokeCap(cap){
 //     }
 //   }
 // }
+// function color(v1,v2=undefined,v3=undefined,alpha=undefined){
+//   let _v;
+//   if(typeof alpha !== undefined){
+//     _v = [v1*colorRange1Rate,v2*colorRange2Rate,v3*colorRange3Rate,alpha*colorRange4Rate];
+//   }else if(typeof v3 !== undefined){
+//     _v = [v1*colorRange1Rate,v2*colorRange2Rate,v3*colorRange3Rate,1];
+//   }else if(typeof v2 !== undefined){
+//     _v = [v1*colorRange1Rate,v1*colorRange1Rate,v1*colorRange1Rate,alpha*colorRange4Rate];
+//   }else{
+//     _v = [v1*colorRange1Rate,v1*colorRange1Rate,v1*colorRange1Rate,1];
+//   }
+//   if(colorType === 'HSB'){
+//     _vs = [_v[0]/60,_v[1]/100,_v[2]/100];
+//     const k = (n) => (n+_vs[0])%6;
+//     const f = (n) => _vs[2]*(1-_vs[1]*Math.max(0,Math.min(k(n),4-k(n),1)));
+//     _v = [255*f(5),255*f(3),255*f(1),_v[3]];
+//   }
+//   return _v;
+// }
 
 function size(w, h) {
   const canvas = document.getElementById("canvas");
@@ -402,6 +421,35 @@ function print(txt) {
 }
 function println(txt) {
   console.log(txt);
+}
+// Input Time&Date
+function day() {
+  const d = new Date();
+  return d.getDate();
+}
+function month() {
+  const d = new Date();
+  return d.getMonth()+1;
+}
+function year() {
+  const d = new Date();
+  return d.getFullYear();
+}
+function hour() {
+  const d = new Date();
+  return d.getHours();
+}
+function minute() {
+  const d = new Date();
+  return d.getMinutes();
+}
+function second() {
+  const d = new Date();
+  return d.getSeconds();
+}
+function millis() {
+  const d = new Date();
+  return d.getMilliseconds();
 }
 // Math Calculation
 function abs(n) {
