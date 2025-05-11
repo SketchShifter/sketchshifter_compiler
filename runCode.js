@@ -109,52 +109,52 @@ function colorMode(mode='RGB', range1, range2, range3, range4) {
   }
   if(colorType === 'HSB'){
     colorRange1Rate = 360/range1 || 1; // H
-    colorRange2Rate = 100/range2 || colorRange1Rate; // S
-    colorRange3Rate = 100/range3 || colorRange1Rate; // B
+    colorRange2Rate = 100/range2 || 100/range1; // S
+    colorRange3Rate = 100/range3 || 100/range1; // B
     colorRange4Rate = 1/range4 || 1/255; // A
   }
 }
 
 function color(v1,v2,v3,v4){
-  if((v1.length === 7 || v1.length === 9 ) && (v1.substr(0,1)==='#' || v1.substr(0,2) === '0x')) return v1;
+  if((v1.length === 7 || v1.length === 9 ) && (v1.substr(0,1) === '#' || v1.substr(0,2) === '0x')) return v1;
   let _v;
   if(typeof v4 !== 'undefined'){
     _v = [v1*colorRange1Rate,v2*colorRange2Rate,v3*colorRange3Rate,v4*colorRange4Rate*255];
   }else if(typeof v3 !== 'undefined'){
     _v = [v1*colorRange1Rate,v2*colorRange2Rate,v3*colorRange3Rate,255];
   }else if(typeof v2 !== 'undefined'){
-    _v = [v1*colorRange1Rate,v1*colorRange1Rate,v1*colorRange1Rate,v2*colorRange4Rate*255];
+    _v = [v1*colorRange1Rate,v1*colorRange2Rate,v1*colorRange3Rate,v2*colorRange4Rate*255];
   }else{
-    _v = [v1*colorRange1Rate,v1*colorRange1Rate,v1*colorRange1Rate,255];
+    _v = [v1*colorRange1Rate,v1*colorRange2Rate,v1*colorRange3Rate,255];
   }
   if (colorType === 'HSB') {
     const h = _v[0];
-    const s = _v[1] / 100;
-    const brightness = _v[2] / 100; // 'b'を'brightness'に変更
-    let r, g, bb; // 'b'を使用しないように修正
-
+    const s = _v[1];
+    const l = _v[2];
+    let r, g, bb;
+    console.error(_v);
     if (s === 0) {
-      _v = [255, 255, 255, _v[3]]; // 彩度が0の場合は白
+      _v = [255, 255, 255, _v[3]];
     } else {
-      const i = Math.floor(h / 60) % 6;
-      const f = h / 60 - Math.floor(h / 60);
-      const p = brightness * (1 - s);
-      const q = brightness * (1 - f * s);
-      const t = brightness * (1 - (1 - f) * s);
-
+      let i = Math.floor(h / 60) % 6;
+      let mx = (l<50) ? 2.55 * (l + l * (s / 100)) : 2.55 * (l + (100 - l) * (s / 100));
+      let mn = (l<50) ? 2.55 * (l - l * (s / 100)) : 2.55 * (l - (100 - l) * (s / 100));
       switch (i) {
-        case 0: r = brightness; g = t; bb = p; break;
-        case 1: r = q; g = brightness; bb = p; break;
-        case 2: r = p; g = brightness; bb = t; break;
-        case 3: r = p; g = q; bb = brightness; break;
-        case 4: r = t; g = p; bb = brightness; break;
-        case 5: r = brightness; g = p; bb = q; break;
+        case 0: r = mx; g = (h/60)*(mx-mn)+mn; bb = mn; break;
+        case 1: r = ((120-h)/60)*(mx-mn)+mn; g = mx; bb = mn; break;
+        case 2: r = mn; g = mx; bb = ((h-120)/60)*(mx-mn)+mn; break;
+        case 3: r = mn; g = ((240-h)/60)*(mx-mn)+mn; bb = mx; break;
+        case 4: r = ((h-240)/60)*(mx-mn)+mn; g = mn; bb = mx; break;
+        case 5: r = mx; g = mn; bb = ((360-h)/60)*(mx-mn)+mn; break;
       }
-      r = Math.round(r * 255);
-      g = Math.round(g * 255);
-      bb = Math.round(bb * 255);
-      _v = [Math.max(0, Math.min(255, r)), Math.max(0, Math.min(255, g)), Math.max(0, Math.min(255, bb)), _v[3]];
-  
+      // r = Math.max(0,Math.min(255,Math.round(r * 255)));
+      // g = Math.max(0,Math.min(255,Math.round(g * 255)));
+      // bb = Math.max(0,Math.min(255,Math.round(bb * 255)));
+      // r = Math.round(r);
+      // g = Math.round(g);
+      // bb = Math.round(bb);
+      _v = [r,g,bb, _v[3]];
+      console.log(mx,mn,_v);
     }
   }
   let html_color = '#'; 
@@ -162,6 +162,7 @@ function color(v1,v2,v3,v4){
     return Math.round(val).toString(16).padStart(2, '0').substr(0, 2);
   }
   _v.forEach((val) => { html_color += hex(val); });
+  console.log("html",html_color);
   return html_color;
 }
 
@@ -343,8 +344,16 @@ function fill(r, g, b, a) {
   useFill = true;
 }
 
-function stroke(r, g, b, a) {
-  strokeColor = color(r,g,b,a);
+function stroke(v1,v2,v3,v4) {
+  if(typeof v4 !== 'undefined'){
+    strokeColor = color(v1,v2,v3,v4);
+  }else if(typeof v3 !== 'undefined'){
+    strokeColor = color(v1,v2,v3);
+  }else if(typeof v2 !== 'undefined'){
+    strokeColor = color(v1,v1,v1,v2);
+  }else{
+    strokeColor = color(v1,v1,v1);
+  }
   useStroke = true;
 }
 
