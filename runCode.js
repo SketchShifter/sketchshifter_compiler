@@ -119,39 +119,69 @@ function strokeCap(cap){
 }
 
 // // 色関係
-// function colorMode(mode, range1=undefined, range2=undefined, range3=undefined, range4=undefined) {
-//   colorType = (mode === "RGB" || mode === "HSB") ? mode : "RGB"; // RGB or HSB
-//   if(colorType === 'RGB'){
-//     colorRange1Rate = 255/range1 || 1; // R
-//     colorRange2Rate = 255/range2 || colorRange1Rate; // G
-//     colorRange3Rate = 255/range3 || colorRange1Rate; // B
-//     colorRange4Rate = 1/range4 || 1; // A
-//   }
-//   if(colorType === 'HSB'){
-//     colorRange1Rate = 360/range1 || 1; // H
-//     colorRange2Rate = 100/range2 || colorRange1Rate; // S
-//     colorRange3Rate = 100/range3 || colorRange1Rate; // B
-//     colorRange4Rate = 1/range4 || 1; // A
-//   }
-// }
+function colorMode(mode='RGB', range1, range2, range3, range4) {
+  colorType = mode;
+  if(colorType === 'RGB'){
+    colorRange1Rate = 255/range1 || 1; // R
+    colorRange2Rate = 255/range2 || colorRange1Rate; // G
+    colorRange3Rate = 255/range3 || colorRange1Rate; // B
+    colorRange4Rate = 1/range4 || 1/255; // A
+  }
+  if(colorType === 'HSB'){
+    colorRange1Rate = 360/range1 || 1; // H
+    colorRange2Rate = 100/range2 || 100/range1; // S
+    colorRange3Rate = 100/range3 || 100/range1; // B
+    colorRange4Rate = 1/range4 || 1/255; // A
+  }
+}
 
-// function Color(r, g, b, a){
-//   if(r[0] === '#' || r.length === 4 || r.length === 7){
-//     // HTML color code
-//   }else{
-//     if(colorType==='RGB){
-//       _r = r*colorRange1Rate;
-//       _g = g*colorRange2Rate || _r;
-//       _b = b*colorRange3Rate || _r;
-//       _a = a*colorRange4Rate || 1;
-//     }else{
-//       _r = r*colorRange1Rate;
-//       _g = g*colorRange2Rate || _r;
-//       _b = b*colorRange3Rate || _g;
-//       _a = a*colorRange4Rate || 1;
-//     }
-//   }
-// }
+function color(v1,v2,v3,v4){
+  if((v1.length === 7 || v1.length === 9 ) && (v1.substr(0,1) === '#' || v1.substr(0,2) === '0x')) return v1;
+  let _v;
+  if(typeof v4 !== 'undefined'){
+    _v = [v1*colorRange1Rate,v2*colorRange2Rate,v3*colorRange3Rate,v4*colorRange4Rate*255];
+  }else if(typeof v3 !== 'undefined'){
+    _v = [v1*colorRange1Rate,v2*colorRange2Rate,v3*colorRange3Rate,255];
+  }else if(typeof v2 !== 'undefined'){
+    _v = [v1*colorRange1Rate,v1*colorRange2Rate,v1*colorRange3Rate,v2*colorRange4Rate*255];
+  }else{
+    _v = [v1*colorRange1Rate,v1*colorRange2Rate,v1*colorRange3Rate,255];
+  }
+  if (colorType === 'HSB') {
+    const h = _v[0];
+    const s = _v[1];
+    const l = _v[2];
+    let r, g, bb;
+    if (s === 0) {
+      _v = [255, 255, 255, _v[3]];
+    } else {
+      let i = Math.floor(h / 60) % 6;
+      let mx = (l<50) ? 2.55 * (l + l * (s / 100)) : 2.55 * (l + (100 - l) * (s / 100));
+      let mn = (l<50) ? 2.55 * (l - l * (s / 100)) : 2.55 * (l - (100 - l) * (s / 100));
+      switch (i) {
+        case 0: r = mx; g = (h/60)*(mx-mn)+mn; bb = mn; break;
+        case 1: r = ((120-h)/60)*(mx-mn)+mn; g = mx; bb = mn; break;
+        case 2: r = mn; g = mx; bb = ((h-120)/60)*(mx-mn)+mn; break;
+        case 3: r = mn; g = ((240-h)/60)*(mx-mn)+mn; bb = mx; break;
+        case 4: r = ((h-240)/60)*(mx-mn)+mn; g = mn; bb = mx; break;
+        case 5: r = mx; g = mn; bb = ((360-h)/60)*(mx-mn)+mn; break;
+      }
+      // r = Math.max(0,Math.min(255,Math.round(r * 255)));
+      // g = Math.max(0,Math.min(255,Math.round(g * 255)));
+      // bb = Math.max(0,Math.min(255,Math.round(bb * 255)));
+      // r = Math.round(r);
+      // g = Math.round(g);
+      // bb = Math.round(bb);
+      _v = [r,g,bb, _v[3]];
+    }
+  }
+  let html_color = '#'; 
+  const hex = (val) => {
+    return Math.round(val).toString(16).padStart(2, '0').substr(0, 2);
+  }
+  _v.forEach((val) => { html_color += hex(val); });
+  return html_color;
+}
 
 function size(w, h) {
   const canvas = document.getElementById("canvas");
@@ -224,8 +254,8 @@ function size(w, h) {
   });
 }
 
-function background(r, g = r, b = r, a = 1) {
-  ctx.fillStyle = (colorType === RGB) ? \`rgba(\${r*colorRange1Rate}, \${g*colorRange2Rate}, \${b*colorRange3Rate}, \${a*colorRange4Rate})\`:\`hsl(\${r*colorRange1Rate}deg \${g*colorRange2Rate}% \${b*colorRange3Rate}% / \${a*colorRange4Rate})\`;
+function background(r, g, b, a) {
+  ctx.fillStyle = color(r,g,b,a);
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -331,13 +361,21 @@ function bezier(x1, y1, x2, y2, x3, y3, x4, y4) {
   if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
 }
 
-function fill(r, g = r, b = r) {
-  fillColor = \`rgb(\${r}, \${g}, \${b})\`;
+function fill(r, g, b, a) {
+  fillColor = color(r,g,b,a);
   useFill = true;
 }
 
-function stroke(r, g, b) {
-  strokeColor = \`rgb(\${r}, \${g}, \${b})\`;
+function stroke(v1,v2,v3,v4) {
+  if(typeof v4 !== 'undefined'){
+    strokeColor = color(v1,v2,v3,v4);
+  }else if(typeof v3 !== 'undefined'){
+    strokeColor = color(v1,v2,v3);
+  }else if(typeof v2 !== 'undefined'){
+    strokeColor = color(v1,v1,v1,v2);
+  }else{
+    strokeColor = color(v1,v1,v1);
+  }
   useStroke = true;
 }
 
@@ -434,8 +472,37 @@ const RIGHT_ARROW = 39;
 function print(txt) {
   console.log(txt);
 }
-function println(txt) {
+function printIn(txt) {
   console.log(txt);
+}
+// Input Time&Date
+function day() {
+  const d = new Date();
+  return d.getDate();
+}
+function month() {
+  const d = new Date();
+  return d.getMonth()+1;
+}
+function year() {
+  const d = new Date();
+  return d.getFullYear();
+}
+function hour() {
+  const d = new Date();
+  return d.getHours();
+}
+function minute() {
+  const d = new Date();
+  return d.getMinutes();
+}
+function second() {
+  const d = new Date();
+  return d.getSeconds();
+}
+function millis() {
+  const d = new Date();
+  return d.getMilliseconds();
 }
 // Math Calculation
 function abs(n) {
@@ -2315,13 +2382,15 @@ class Lexer {
     // 識別子またはキーワード (アルファベットまたは _ で始まる)
     if (/[a-zA-Z_]/.test(ch)) {
       let idStr = "";
+      let isFunction = false;
       while (!this.isEOF() && /[a-zA-Z0-9_]/.test(this.currentChar())) {
         idStr += this.currentChar();
         this.advance();
+        if(this.currentChar()==='(') isFunction = true;
       }
       const types = ["boolean", "byte", "char", "color", "double", "float", "int", "long", "String"];
       const keywords = ["if", "else", "for", "while", "do", "switch", "case", "break", "continue", "return", "void", "class", "new", "extends", "abstract", "import"];
-      if (types.includes(idStr)) {
+      if (!isFunction && types.includes(idStr)) {
         return new Token("TYPE", idStr);
       } else if (keywords.includes(idStr)) {
         return new Token("KEYWORD", idStr);
