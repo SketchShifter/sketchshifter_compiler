@@ -10,6 +10,7 @@ let useStroke = true;
 let useFill = true;
 let loopId;
 let frameCount=0;
+let frameRateValue = 30; // デフォルトのフレームレート
 
 // マウス関連のグローバル変数
 let mouseX = 0;
@@ -37,6 +38,24 @@ if(typeof keyPressed === 'undefined') {
     return keyIsPressed;
   }
   var isKeyPressedUndefined = true;
+}
+
+// frameRateの実装
+function frameRate(fps) {
+  if (fps <= 0) {
+    console.error("frameRate must be greater than 0");
+    return;
+  }
+  frameRateValue = fps;
+  
+  // 既存のループを停止して再開
+  if (loopId != null) {
+    clearInterval(loopId);
+    loopId = setInterval(() => {
+      frameCount++;
+      if (typeof draw === 'function') draw();
+    }, 1000 / frameRateValue);
+  }
 }
 
 // radiansの実装
@@ -330,6 +349,15 @@ function noStroke() {
   useStroke = false;
 }
 
+// loop関数の追加
+function loop() {
+  if (loopId == null) {
+    loopId = setInterval(() => {
+      frameCount++;
+      if (typeof draw === 'function') draw();
+    }, 1000 / frameRateValue);
+  }
+}
 
 // テキスト関連機能
 function text(str, x, y) {
@@ -491,10 +519,11 @@ const processingAPI2 = `
   loopId = setInterval(() => {
     frameCount++;
     if (typeof draw === 'function') draw();
-  }, 1000 / 30);
+  }, 1000 / frameRateValue);
   function noLoop() {
     if (loopId != null) {
       clearInterval(loopId);
+      loopId = null;
     }
   }
 `;
@@ -551,7 +580,7 @@ function runPDE() {
     });
 }
 
-
+// --------------------------------------------------
 // パーサー
 // --------------------------------------------------
 // AST ノードの定義 (実装方針はProcessing.js 参照)
