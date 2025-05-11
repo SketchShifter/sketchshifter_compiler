@@ -1,13 +1,14 @@
 void setup() {
-    size(400,400);
+size(400,400);
+noStroke();
+colorMode(HSB, 400);
+for (int i = 0; i < 400; i++) {
+  for (int j = 0; j < 400; j++) {
+    stroke(i, j, 400);
+    point(i, j);
+  }
+}
 }
 
-void draw() 
-{ 
-  background(204);
-  float mx = constrain(mouseX, 30, 200);
-  rect(mx-10, 40, 20, 20);
-  // printIn(color(50, 55, 100));
-  // printIn(color(100,100,100,100));
-  color c = color(100,100,100,100);
+void draw() {
 }
