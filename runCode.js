@@ -331,6 +331,11 @@ function arc(x, y, w, h, start, stop, mode = 'OPEN') {
   if (useStroke) { ctx.strokeStyle = strokeColor; ctx.stroke(); }
 }
 
+function circle(x, y, r) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 2 * Math.PI, false);
+}
+
 // Bézier曲線
 function bezier(x1, y1, x2, y2, x3, y3, x4, y4) {
   ctx.beginPath();
@@ -2521,7 +2526,7 @@ const PROCESSING_GLOBALS = [
   // 描画関数
   "fill", "stroke", "noFill", "noStroke", "background", 
   "ellipse", "rect", "line", "point", "triangle", "quad", "arc",
-  "bezier", "curve", "vertex", "beginShape", "endShape",
+  "circle","bezier", "curve", "vertex", "beginShape", "endShape",
   // 変換関数
   "translate", "rotate", "scale", "pushMatrix", "popMatrix",
   // モード設定
@@ -2532,3 +2537,10 @@ const PROCESSING_GLOBALS = [
   "random", "map", "constrain", "dist", "abs", "sin", "cos", "tan",
   "millis", "second", "minute", "hour", "day", "month", "year"
 ];
+
+// windowプロパティがスコープ外にならないよう、window に露出させておく必要がある
+window.tokenize = tokenize;
+window.Parser = Parser;
+window.generateJavaScriptFromAST = generateJavaScriptFromAST;
+window.processingAPI = processingAPI;
+window.processingAPI2 = processingAPI2;
