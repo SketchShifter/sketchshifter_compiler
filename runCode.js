@@ -132,7 +132,6 @@ function color(v1,v2,v3,v4){
     const s = _v[1];
     const l = _v[2];
     let r, g, bb;
-    console.error(_v);
     if (s === 0) {
       _v = [255, 255, 255, _v[3]];
     } else {
@@ -154,7 +153,6 @@ function color(v1,v2,v3,v4){
       // g = Math.round(g);
       // bb = Math.round(bb);
       _v = [r,g,bb, _v[3]];
-      console.log(mx,mn,_v);
     }
   }
   let html_color = '#'; 
@@ -162,7 +160,6 @@ function color(v1,v2,v3,v4){
     return Math.round(val).toString(16).padStart(2, '0').substr(0, 2);
   }
   _v.forEach((val) => { html_color += hex(val); });
-  console.log("html",html_color);
   return html_color;
 }
 
