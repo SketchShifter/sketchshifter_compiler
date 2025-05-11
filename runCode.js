@@ -9,6 +9,7 @@ let strokeColor = 'black';
 let useStroke = true;
 let useFill = true;
 let loopId;
+let frameCount=0;
 
 // マウス関連のグローバル変数
 let mouseX = 0;
@@ -488,6 +489,7 @@ function radians(deg) {
 const processingAPI2 = `
   setup();
   loopId = setInterval(() => {
+    frameCount++;
     if (typeof draw === 'function') draw();
   }, 1000 / 30);
   function noLoop() {
